@@ -1,0 +1,2921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Robot Vacuums" />
+  <meta name="theme-color" content="#fef3c7" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="./apple-touch-icon.png" />
+  <title>Robot Vacuum Playroom — iPad Pro 11" Kids Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #fffbeb;
+      --card: #ffffff;
+      --content: #fef3c7;
+      --border: #e2e8f0;
+      --foreground: #0f172a;
+      --muted-foreground: #64748b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #0f172a;
+        --card: #1e293b;
+        --content: #334155;
+        --border: #475569;
+        --foreground: #f8fafc;
+        --muted-foreground: #94a3b8;
+      }
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      font-family: 'Nunito', 'Fredoka', 'Quicksand', ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, sans-serif;
+    }
+
+    .ipad-shell {
+      height: 100dvh;
+      max-width: 1194px;
+      margin: 0 auto;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(10px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
+    }
+
+    .toy-btn {
+      transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease, background-color 0.15s ease;
+      touch-action: manipulation;
+    }
+    .toy-btn:hover {
+      transform: translateY(-1px);
+    }
+    .toy-btn:active {
+      transform: translateY(1px) scale(0.96);
+    }
+
+    .tool-active {
+      box-shadow: 0 0 0 3px #f59e0b, 0 6px 14px rgba(245, 158, 11, 0.28);
+      transform: translateY(-2px);
+    }
+
+    /* Perfect 16:9 fit inside available flex space without ever overflowing */
+    .stage-wrapper {
+      container-type: size;
+    }
+    .stage-frame {
+      width: min(100cqw, calc(100cqh * 16 / 9));
+      height: min(100cqh, calc(100cqw * 9 / 16));
+    }
+
+    @keyframes floatBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    .animate-float {
+      animation: floatBounce 1.8s ease-in-out infinite;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.88) translateY(8px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .pop-in {
+      animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased">
+  <div class="ipad-shell flex flex-col gap-2.5">
+    <!-- Slim iPad Top Bar -->
+    <header class="shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 flex items-center justify-between gap-2 shadow-sm">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-xl shadow-inner shrink-0">
+          🤖
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-base sm:text-lg font-extrabold tracking-tight leading-tight truncate">Robot Vacuum Playroom</h1>
+          <p class="text-[11px] text-[var(--muted-foreground)] truncate hidden sm:block">Tap a robot to guide or charge it, or scatter messes on the floor!</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--content)] border border-[var(--border)] text-xs font-bold">
+          <span>✨ Cleaned:</span>
+          <span id="cleanedCount" class="text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">0</span>
+        </div>
+        <button id="scatterFunBtn" class="toy-btn px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold text-xs sm:text-sm shadow-sm border border-amber-500/40 cursor-pointer">
+          🎉 Scatter Mess
+        </button>
+        <button id="soundToggleBtn" class="toy-btn px-3.5 py-2 rounded-xl bg-[var(--content)] hover:opacity-90 border border-[var(--border)] font-bold text-xs sm:text-sm cursor-pointer" title="Toggle Sound">
+          🔊 Sound On
+        </button>
+      </div>
+    </header>
+
+    <!-- Main iPad Stage: Landscape = Playroom Left + Robot Rail Right; Portrait = Robot Row Top + Playroom Below -->
+    <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5">
+      <!-- Playroom Canvas Container -->
+      <main class="flex-1 min-h-0 min-w-0 bg-[var(--card)] border border-[var(--border)] rounded-3xl p-2 shadow-sm flex items-center justify-center stage-wrapper">
+        <div class="stage-frame relative overflow-hidden rounded-2xl border-2 border-amber-900/20 shadow-inner">
+          <canvas id="roomCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+          <!-- Mode Hint Pill -->
+          <div id="modeHint" class="pointer-events-none absolute bottom-2.5 left-2.5 px-3 py-1.5 rounded-full bg-white/92 text-slate-800 text-xs font-bold shadow-md border border-slate-200 flex items-center gap-1.5 max-w-[75%]">
+            <span>👆</span>
+            <span id="modeHintText" class="truncate">Tap a robot to control it, or pick an item below to scatter!</span>
+          </div>
+
+          <!-- Repair Station Callout Badge -->
+          <button id="openWashBtn" class="hidden toy-btn animate-float absolute bottom-2.5 right-2.5 px-4 py-2.5 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white font-extrabold text-sm shadow-lg border-2 border-white cursor-pointer flex items-center gap-2">
+            <span>🐿️🧼</span>
+            <span id="openWashText">Wash Robot!</span>
+          </button>
+
+          <!-- Selected Robot Floating Control Panel (Touch-Sized for iPad) -->
+          <div id="robotPopover" class="hidden pop-in absolute top-2.5 right-2.5 w-72 max-w-[calc(100%-1.25rem)] bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl border-2 border-amber-400 p-3 z-20 backdrop-blur-sm">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <div id="popAvatar" class="w-9 h-9 rounded-full border-2 border-slate-300 flex items-center justify-center shadow-inner shrink-0"></div>
+                <div class="min-w-0">
+                  <div id="popName" class="font-extrabold text-base leading-tight truncate">Snowy</div>
+                  <div id="popModel" class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold truncate">White Roomba</div>
+                </div>
+              </div>
+              <button id="closePopoverBtn" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-sm font-bold cursor-pointer shrink-0" aria-label="Close">✕</button>
+            </div>
+
+            <!-- Animated Isometric Character Stage -->
+            <div class="relative w-full h-36 rounded-2xl overflow-hidden border border-amber-300/60 dark:border-slate-700 mb-2.5 shadow-inner">
+              <canvas id="popIsoCanvas" class="w-full h-full block"></canvas>
+            </div>
+
+            <!-- Status Badge -->
+            <div class="flex items-center justify-between text-xs font-bold mb-2 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
+              <span class="text-slate-500 dark:text-slate-400">Status</span>
+              <span id="popStatus" class="text-emerald-600 dark:text-emerald-400">Vacuuming</span>
+            </div>
+
+            <!-- Battery Bar -->
+            <div class="mb-2.5">
+              <div class="flex items-center justify-between text-xs font-bold mb-1">
+                <span>🔋 Battery</span>
+                <span id="popBatteryPct" class="tabular-nums">100%</span>
+              </div>
+              <div class="w-full h-3.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden p-0.5">
+                <div id="popBatteryBar" class="h-full rounded-full transition-all duration-200 bg-emerald-500" style="width: 100%"></div>
+              </div>
+            </div>
+
+            <!-- Action Buttons (44px+ iPad Touch Targets) -->
+            <div class="flex flex-col gap-1.5">
+              <button id="btnGoBase" class="toy-btn w-full min-h-[42px] py-2 px-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-extrabold text-sm shadow-sm cursor-pointer flex items-center justify-center gap-2">
+                <span>🏠</span>
+                <span>Send to Recharge Base</span>
+              </button>
+              <button id="btnStartRun" class="toy-btn w-full min-h-[42px] py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-sm shadow-sm cursor-pointer flex items-center justify-center gap-2">
+                <span>▶️</span>
+                <span>Start / Continue Run</span>
+              </button>
+              <button id="btnInstantCharge" class="hidden toy-btn w-full min-h-[42px] py-2 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold text-sm shadow-sm border border-amber-500/40 cursor-pointer flex items-center justify-center gap-2">
+                <span>⚡</span>
+                <span>Instant Full Charge!</span>
+              </button>
+              <button id="btnGoWash" class="hidden toy-btn w-full min-h-[42px] py-2 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white font-extrabold text-sm shadow-sm cursor-pointer flex items-center justify-center gap-2">
+                <span>🧼</span>
+                <span>Open Squirrel Wash Tub!</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Robot Roster Rail (Right side in iPad Landscape, Top/Compact 3x2 grid in Portrait) -->
+      <aside class="shrink-0 order-first lg:order-last lg:w-52 flex flex-col">
+        <div id="robotStrip" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5 lg:h-full" aria-label="Robot Vacuums">
+          <!-- Populated by JS -->
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Touch-Friendly Inventory Dock -->
+    <section class="shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3 py-2 shadow-sm">
+      <div class="flex items-center justify-between gap-2 overflow-x-auto">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-[var(--muted-foreground)] mr-1 hidden md:inline">Inventory:</span>
+
+          <button data-tool="pointer" class="tool-btn toy-btn tool-active min-h-[52px] px-4 py-2 rounded-2xl bg-[var(--content)] border border-[var(--border)] font-extrabold text-sm flex items-center gap-2.5 cursor-pointer shrink-0">
+            <span class="text-2xl">👆</span>
+            <div class="text-left leading-tight">
+              <div>Control</div>
+              <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">Tap robots</div>
+            </div>
+          </button>
+
+          <button data-tool="rice" class="tool-btn toy-btn min-h-[52px] px-4 py-2 rounded-2xl bg-[var(--content)] border border-[var(--border)] font-extrabold text-sm flex items-center gap-2.5 cursor-pointer shrink-0">
+            <span class="text-2xl">🍚</span>
+            <div class="text-left leading-tight">
+              <div>Rice</div>
+              <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">Scatter grains</div>
+            </div>
+          </button>
+
+          <button data-tool="paper" class="tool-btn toy-btn min-h-[52px] px-4 py-2 rounded-2xl bg-[var(--content)] border border-[var(--border)] font-extrabold text-sm flex items-center gap-2.5 cursor-pointer shrink-0">
+            <span class="text-2xl">📄</span>
+            <div class="text-left leading-tight">
+              <div>Paper</div>
+              <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">Scatter scraps</div>
+            </div>
+          </button>
+
+          <button data-tool="poop" class="tool-btn toy-btn min-h-[52px] px-4 py-2 rounded-2xl bg-[var(--content)] border border-[var(--border)] font-extrabold text-sm flex items-center gap-2.5 cursor-pointer shrink-0">
+            <span class="text-2xl">💩</span>
+            <div class="text-left leading-tight">
+              <div>Dog Poop</div>
+              <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">Watch out!</div>
+            </div>
+          </button>
+        </div>
+
+        <button id="clearMessBtn" class="toy-btn min-h-[52px] px-4 py-2 rounded-2xl bg-[var(--content)] hover:opacity-90 border border-[var(--border)] font-extrabold text-sm cursor-pointer shrink-0">
+          🧹 Clear Floor
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Squirrel Rescue & Interactive Wash Station Modal -->
+  <div id="washModal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="pop-in bg-gradient-to-b from-sky-50 to-white dark:from-slate-800 dark:to-slate-900 border-4 border-sky-400 rounded-3xl max-w-2xl w-full p-5 shadow-2xl text-slate-900 dark:text-slate-100">
+      <div class="flex items-center justify-between gap-2 mb-2.5">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🐿️</span>
+          <div>
+            <h2 class="text-xl font-extrabold leading-tight">Squirrel's Wash &amp; Repair Station</h2>
+            <p id="washSubtitle" class="text-xs font-bold text-sky-700 dark:text-sky-300">Help Squirrel scrub the messy robot clean!</p>
+          </div>
+        </div>
+        <button id="closeWashModalBtn" class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 font-bold text-base cursor-pointer" title="Back to room">✕</button>
+      </div>
+
+      <!-- Wash Step Indicators -->
+      <div class="grid grid-cols-3 gap-2 mb-3 text-xs sm:text-sm font-extrabold">
+        <div id="stepSoapBadge" class="px-3 py-2 rounded-xl bg-amber-100 text-amber-900 border-2 border-amber-400 text-center">
+          1. 🧼 Scrub Soap
+        </div>
+        <div id="stepRinseBadge" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 border-2 border-transparent text-center">
+          2. 🚿 Rinse Water
+        </div>
+        <div id="stepDryBadge" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 border-2 border-transparent text-center">
+          3. ✨ Dry &amp; Shine
+        </div>
+      </div>
+
+      <!-- Interactive Wash Tub Canvas -->
+      <div class="relative rounded-2xl overflow-hidden border-2 border-sky-300 bg-sky-100 shadow-inner mb-3.5" style="aspect-ratio: 16 / 10; max-height: 46dvh;">
+        <canvas id="washCanvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+        <div id="washInstructionOverlay" class="pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-white/95 text-sky-900 text-xs sm:text-sm font-extrabold shadow border border-sky-200 whitespace-nowrap">
+          Rub the robot with the soapy sponge!
+        </div>
+      </div>
+
+      <!-- Wash Tools & Progress (Large iPad Touch Buttons) -->
+      <div class="flex flex-wrap items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2">
+          <button data-washtool="soap" class="wash-tool-btn toy-btn min-h-[46px] px-4 py-2.5 rounded-2xl bg-amber-300 text-amber-950 font-extrabold text-sm border-2 border-amber-500 cursor-pointer">
+            🧼 Soap
+          </button>
+          <button data-washtool="rinse" class="wash-tool-btn toy-btn min-h-[46px] px-4 py-2.5 rounded-2xl bg-sky-200 text-sky-950 font-extrabold text-sm border-2 border-transparent cursor-pointer">
+            🚿 Rinse
+          </button>
+          <button data-washtool="dry" class="wash-tool-btn toy-btn min-h-[46px] px-4 py-2.5 rounded-2xl bg-emerald-200 text-emerald-950 font-extrabold text-sm border-2 border-transparent cursor-pointer">
+            💨 Dry
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="autoWashBtn" class="toy-btn min-h-[46px] px-4 py-2.5 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold text-sm shadow cursor-pointer">
+            🐿️ Squirrel Auto-Wash!
+          </button>
+          <button id="finishWashBtn" class="hidden toy-btn min-h-[46px] px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-sm shadow cursor-pointer">
+            🎉 Back to Playroom!
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // ============================================================
+      // 1. WEB AUDIO SYNTHESIZER (Kid-friendly, gentle sound effects)
+      // ============================================================
+      let soundEnabled = true;
+      let audioCtx = null;
+
+      function ensureAudio() {
+        if (!soundEnabled) return null;
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) audioCtx = new AC();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        return audioCtx;
+      }
+
+      function playTone(freq, duration = 0.12, type = 'sine', vol = 0.08, endFreq = null) {
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      const sfx = {
+        pop: () => playTone(520, 0.08, 'sine', 0.07, 780),
+        paper: () => playTone(360, 0.09, 'triangle', 0.06, 520),
+        poopDrop: () => playTone(210, 0.18, 'sawtooth', 0.05, 110),
+        vacuum: () => playTone(640 + Math.random() * 180, 0.07, 'sine', 0.05, 920),
+        dodge: () => playTone(440, 0.12, 'triangle', 0.06, 660),
+        uhoh: () => {
+          playTone(340, 0.16, 'sawtooth', 0.06, 220);
+          setTimeout(() => playTone(220, 0.25, 'sawtooth', 0.06, 130), 140);
+        },
+        charge: () => {
+          [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => playTone(f, 0.14, 'triangle', 0.08), i * 65));
+        },
+        bubble: () => playTone(480 + Math.random() * 340, 0.06, 'sine', 0.04, 880),
+        rinse: () => playTone(700 + Math.random() * 200, 0.05, 'sine', 0.03, 420),
+        fanfare: () => {
+          [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => playTone(f, 0.18, 'triangle', 0.09), i * 80));
+        },
+        click: () => playTone(580, 0.06, 'sine', 0.05, 680)
+      };
+
+      // ============================================================
+      // 2. WORLD CONSTANTS & STATE
+      // ============================================================
+      const WORLD_W = 1120;
+      const WORLD_H = 630;
+      const WALL = 36;
+      const DOCK_Y = WALL + 28;
+      const REPAIR_STATION = { x: WORLD_W - 118, y: WORLD_H - 96, w: 148, h: 112 };
+
+      let currentTool = 'pointer'; // 'pointer' | 'rice' | 'paper' | 'poop'
+      let selectedRobotId = null;
+      let cleanedTotal = 0;
+      let frameTime = 0;
+
+      // Floating effects (sparkles, bubbles, speech tags)
+      const effects = [];
+      const messes = []; // { id, type: 'rice'|'paper'|'poop', x, y, r, color, rot, scale }
+      let nextMessId = 1;
+
+      // Six requested robots
+      const robots = [
+        {
+          id: 'white-roomba',
+          name: 'Snowy',
+          model: 'White Roomba',
+          shape: 'roomba',
+          bodyColor: '#f8fafc',
+          rimColor: '#cbd5e1',
+          accentColor: '#38bdf8',
+          buttonColor: '#e2e8f0',
+          dockX: 128,
+          dockY: DOCK_Y,
+          x: 190,
+          y: 230,
+          vx: 0,
+          vy: 0,
+          angle: 0.4,
+          targetAngle: 0.4,
+          radius: 30,
+          speed: 78,
+          battery: 94,
+          state: 'vacuuming', // 'vacuuming' | 'returning' | 'charging' | 'sleeping' | 'dirty_waiting' | 'being_rescued' | 'in_repair'
+          wanderTimer: 1.5,
+          brushAngle: 0,
+          speech: '',
+          speechTimer: 0,
+          cleanSparkleTimer: 0,
+          dodgeCooldown: 0
+        },
+        {
+          id: 'light-grey-roomba',
+          name: 'Robit',
+          model: 'Light Grey Roomba',
+          shape: 'roomba',
+          bodyColor: '#cbd5e1',
+          rimColor: '#94a3b8',
+          accentColor: '#22c55e',
+          buttonColor: '#e2e8f0',
+          dockX: 286,
+          dockY: DOCK_Y,
+          x: 360,
+          y: 360,
+          vx: 0,
+          vy: 0,
+          angle: 2.1,
+          targetAngle: 2.1,
+          radius: 30,
+          speed: 74,
+          battery: 82,
+          state: 'vacuuming',
+          wanderTimer: 2.0,
+          brushAngle: 0,
+          speech: '',
+          speechTimer: 0,
+          cleanSparkleTimer: 0,
+          dodgeCooldown: 0
+        },
+        {
+          id: 'dark-grey-roomba',
+          name: 'IR',
+          model: 'Dark Grey Roomba',
+          shape: 'roomba',
+          bodyColor: '#475569',
+          rimColor: '#334155',
+          accentColor: '#f59e0b',
+          buttonColor: '#64748b',
+          dockX: 444,
+          dockY: DOCK_Y,
+          x: 520,
+          y: 220,
+          vx: 0,
+          vy: 0,
+          angle: -1.1,
+          targetAngle: -1.1,
+          radius: 30,
+          speed: 80,
+          battery: 68,
+          state: 'vacuuming',
+          wanderTimer: 1.2,
+          brushAngle: 0,
+          speech: '',
+          speechTimer: 0,
+          cleanSparkleTimer: 0,
+          dodgeCooldown: 0
+        },
+        {
+          id: 'black-shark',
+          name: 'Shark',
+          model: 'Black Shark Vacuum',
+          shape: 'shark',
+          bodyColor: '#18181b',
+          rimColor: '#27272a',
+          accentColor: '#0ea5e9',
+          buttonColor: '#3f3f46',
+          dockX: 602,
+          dockY: DOCK_Y,
+          x: 690,
+          y: 350,
+          vx: 0,
+          vy: 0,
+          angle: 3.6,
+          targetAngle: 3.6,
+          radius: 32,
+          speed: 86,
+          battery: 88,
+          state: 'vacuuming',
+          wanderTimer: 1.7,
+          brushAngle: 0,
+          speech: '',
+          speechTimer: 0,
+          cleanSparkleTimer: 0,
+          dodgeCooldown: 0
+        },
+        {
+          id: 'ecovacs-t80',
+          name: 'Robota',
+          model: 'Ecovacs T80',
+          shape: 'ecovacs',
+          bodyColor: '#f1f5f9',
+          rimColor: '#94a3b8',
+          accentColor: '#06b6d4',
+          buttonColor: '#cbd5e1',
+          dockX: 760,
+          dockY: DOCK_Y,
+          x: 820,
+          y: 230,
+          vx: 0,
+          vy: 0,
+          angle: 2.5,
+          targetAngle: 2.5,
+          radius: 31,
+          speed: 82,
+          battery: 96,
+          state: 'vacuuming',
+          wanderTimer: 1.4,
+          brushAngle: 0,
+          speech: '',
+          speechTimer: 0,
+          cleanSparkleTimer: 0,
+          dodgeCooldown: 0
+        },
+        {
+          id: 'yellow-rc',
+          name: 'Yellow',
+          model: 'Yellow RC Robot',
+          shape: 'yellow_rc',
+          bodyColor: '#facc15',
+          rimColor: '#ca8a04',
+          accentColor: '#f97316',
+          buttonColor: '#fef08a',
+          dockX: 918,
+          dockY: DOCK_Y,
+          x: 470,
+          y: 440,
+          vx: 0,
+          vy: 0,
+          angle: -0.6,
+          targetAngle: -0.6,
+          radius: 23,
+          speed: 92,
+          battery: 90,
+          state: 'vacuuming',
+          wanderTimer: 1.3,
+          brushAngle: 0,
+          speech: '',
+          speechTimer: 0,
+          cleanSparkleTimer: 0,
+          dodgeCooldown: 0
+        }
+      ];
+
+      // Squirrel Rescue Agent (inspired by letter-rescue games!)
+      const squirrel = {
+        x: REPAIR_STATION.x - 10,
+        y: REPAIR_STATION.y - 10,
+        homeX: REPAIR_STATION.x - 10,
+        homeY: REPAIR_STATION.y - 10,
+        state: 'idle', // 'idle' | 'to_robot' | 'carrying'
+        targetRobotId: null,
+        queue: [],
+        hopPhase: 0,
+        facing: -1,
+        speech: '',
+        speechTimer: 0
+      };
+
+      // Wash Station Mini-Game State
+      const washState = {
+        activeRobotId: null,
+        waitingQueue: [],
+        tool: 'soap', // 'soap' | 'rinse' | 'dry'
+        phase: 'soap', // 'soap' | 'rinse' | 'dry' | 'done'
+        spots: [], // muddy spots { x, y, r, clean: 0..1 }
+        bubbles: [], // soap suds { x, y, r, rinsed: false }
+        droplets: [], // animated water drops / sparkles
+        dryProgress: 0, // 0..1
+        isPointerDown: false,
+        pointerX: 280,
+        pointerY: 180,
+        autoWashing: false,
+        autoAngle: 0
+      };
+
+      // ============================================================
+      // 3. DOM ELEMENTS
+      // ============================================================
+      const roomCanvas = document.getElementById('roomCanvas');
+      const ctx = roomCanvas.getContext('2d');
+      const washCanvas = document.getElementById('washCanvas');
+      const wctx = washCanvas.getContext('2d');
+      const popIsoCanvas = document.getElementById('popIsoCanvas');
+      const ictx = popIsoCanvas.getContext('2d');
+
+      const cleanedCountEl = document.getElementById('cleanedCount');
+      const robotStripEl = document.getElementById('robotStrip');
+      const modeHintTextEl = document.getElementById('modeHintText');
+      const openWashBtn = document.getElementById('openWashBtn');
+      const openWashText = document.getElementById('openWashText');
+
+      const robotPopover = document.getElementById('robotPopover');
+      const popAvatar = document.getElementById('popAvatar');
+      const popName = document.getElementById('popName');
+      const popModel = document.getElementById('popModel');
+      const popStatus = document.getElementById('popStatus');
+      const popBatteryPct = document.getElementById('popBatteryPct');
+      const popBatteryBar = document.getElementById('popBatteryBar');
+      const btnGoBase = document.getElementById('btnGoBase');
+      const btnStartRun = document.getElementById('btnStartRun');
+      const btnInstantCharge = document.getElementById('btnInstantCharge');
+      const btnGoWash = document.getElementById('btnGoWash');
+
+      const washModal = document.getElementById('washModal');
+      const washSubtitle = document.getElementById('washSubtitle');
+      const washInstructionOverlay = document.getElementById('washInstructionOverlay');
+      const stepSoapBadge = document.getElementById('stepSoapBadge');
+      const stepRinseBadge = document.getElementById('stepRinseBadge');
+      const stepDryBadge = document.getElementById('stepDryBadge');
+      const autoWashBtn = document.getElementById('autoWashBtn');
+      const finishWashBtn = document.getElementById('finishWashBtn');
+
+      // ============================================================
+      // 4. MESS SCATTERING HELPERS
+      // ============================================================
+      function clampToFloor(x, y, margin = 24) {
+        return {
+          x: Math.max(WALL + margin, Math.min(WORLD_W - WALL - margin, x)),
+          y: Math.max(WALL + 66, Math.min(WORLD_H - WALL - margin, y))
+        };
+      }
+
+      function scatterMess(type, x, y) {
+        const pos = clampToFloor(x, y, 22);
+        // Keep clear of repair station interior
+        if (pos.x > REPAIR_STATION.x - 86 && pos.y > REPAIR_STATION.y - 70) {
+          pos.x = REPAIR_STATION.x - 94;
+        }
+
+        if (type === 'rice') {
+          const count = 7;
+          for (let i = 0; i < count; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const dist = Math.random() * 26;
+            const p = clampToFloor(pos.x + Math.cos(ang) * dist, pos.y + Math.sin(ang) * dist, 16);
+            messes.push({
+              id: nextMessId++,
+              type: 'rice',
+              x: p.x,
+              y: p.y,
+              r: 6,
+              rot: Math.random() * Math.PI,
+              color: '#ffffff'
+            });
+          }
+          sfx.pop();
+        } else if (type === 'paper') {
+          const colors = ['#fef08a', '#bfdbfe', '#fbcfe8', '#bbf7d0', '#fed7aa', '#ffffff'];
+          const count = 4;
+          for (let i = 0; i < count; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const dist = Math.random() * 28;
+            const p = clampToFloor(pos.x + Math.cos(ang) * dist, pos.y + Math.sin(ang) * dist, 18);
+            messes.push({
+              id: nextMessId++,
+              type: 'paper',
+              x: p.x,
+              y: p.y,
+              r: 11,
+              rot: Math.random() * Math.PI * 2,
+              color: colors[Math.floor(Math.random() * colors.length)]
+            });
+          }
+          sfx.paper();
+        } else if (type === 'poop') {
+          messes.push({
+            id: nextMessId++,
+            type: 'poop',
+            x: pos.x,
+            y: pos.y,
+            r: 15,
+            rot: 0,
+            color: '#78350f',
+            spawnTime: frameTime
+          });
+          sfx.poopDrop();
+        }
+
+        // Cap total messes so performance stays silky smooth
+        if (messes.length > 220) {
+          messes.splice(0, messes.length - 220);
+        }
+      }
+
+      function scatterInitialMess() {
+        for (let i = 0; i < 4; i++) {
+          scatterMess('rice', 150 + Math.random() * 750, 170 + Math.random() * 340);
+          scatterMess('paper', 150 + Math.random() * 750, 170 + Math.random() * 340);
+        }
+        scatterMess('poop', 520, 310);
+      }
+
+      function addEffect(type, x, y, text = '', color = '#f59e0b') {
+        effects.push({
+          type,
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 35,
+          vy: -28 - Math.random() * 25,
+          life: 1.0,
+          maxLife: 1.0,
+          text,
+          color,
+          size: 8 + Math.random() * 8
+        });
+      }
+
+      // ============================================================
+      // 5. ROBOT ACTIONS & SQUIRREL RESCUE
+      // ============================================================
+      function say(robot, text, dur = 1.8) {
+        robot.speech = text;
+        robot.speechTimer = dur;
+      }
+
+      function sendRobotToBase(robot) {
+        if (robot.state === 'dirty_waiting' || robot.state === 'being_rescued' || robot.state === 'in_repair') return;
+        robot.state = 'returning';
+        say(robot, 'Going to charge! 🏠', 1.8);
+        sfx.click();
+        updatePopover();
+      }
+
+      function startRobotRun(robot) {
+        if (robot.state === 'dirty_waiting' || robot.state === 'being_rescued' || robot.state === 'in_repair') return;
+        if (robot.battery < 5) {
+          say(robot, 'Need battery first! 🔋', 1.8);
+          return;
+        }
+        robot.state = 'vacuuming';
+        // Give a little nudge downward if starting from dock
+        if (robot.y < DOCK_Y + 45) {
+          robot.angle = Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+          robot.targetAngle = robot.angle;
+        }
+        say(robot, "Let's clean! ✨", 1.6);
+        sfx.click();
+        updatePopover();
+      }
+
+      function instantChargeRobot(robot) {
+        if (robot.state !== 'charging') return;
+        robot.battery = 100;
+        say(robot, '100% Supercharged! ⚡', 2.0);
+        for (let i = 0; i < 14; i++) {
+          addEffect('sparkle', robot.x + (Math.random() - 0.5) * 44, robot.y + (Math.random() - 0.5) * 44, '', '#facc15');
+        }
+        sfx.charge();
+        updatePopover();
+      }
+
+      function triggerPoopAccident(robot, messIndex) {
+        messes.splice(messIndex, 1);
+        robot.state = 'dirty_waiting';
+        say(robot, 'UH OH! STINKY! 💩', 3.0);
+        sfx.uhoh();
+        for (let i = 0; i < 10; i++) {
+          addEffect('stink', robot.x + (Math.random() - 0.5) * 36, robot.y + (Math.random() - 0.5) * 36, '', '#92400e');
+        }
+        if (!squirrel.queue.includes(robot.id) && squirrel.targetRobotId !== robot.id) {
+          squirrel.queue.push(robot.id);
+        }
+        updatePopover();
+      }
+
+      function updateSquirrel(dt) {
+        if (squirrel.speechTimer > 0) squirrel.speechTimer -= dt;
+
+        if (squirrel.state === 'idle') {
+          if (squirrel.queue.length > 0) {
+            squirrel.targetRobotId = squirrel.queue.shift();
+            squirrel.state = 'to_robot';
+            squirrel.speech = 'Rescue Squirrel to the rescue! 🐿️';
+            squirrel.speechTimer = 2.4;
+          }
+          return;
+        }
+
+        const robot = robots.find(r => r.id === squirrel.targetRobotId);
+        if (!robot) {
+          squirrel.state = 'idle';
+          squirrel.targetRobotId = null;
+          return;
+        }
+
+        squirrel.hopPhase += dt * 14;
+
+        if (squirrel.state === 'to_robot') {
+          const dx = robot.x - squirrel.x;
+          const dy = robot.y - squirrel.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 28) {
+            squirrel.state = 'carrying';
+            robot.state = 'being_rescued';
+            squirrel.speech = 'Off to the Wash Tub! 🧼';
+            squirrel.speechTimer = 2.2;
+            sfx.dodge();
+          } else {
+            const spd = 195;
+            squirrel.x += (dx / dist) * spd * dt;
+            squirrel.y += (dy / dist) * spd * dt;
+            squirrel.facing = dx >= 0 ? 1 : -1;
+          }
+        } else if (squirrel.state === 'carrying') {
+          const dx = squirrel.homeX - squirrel.x;
+          const dy = squirrel.homeY - squirrel.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 18) {
+            squirrel.x = squirrel.homeX;
+            squirrel.y = squirrel.homeY;
+            squirrel.state = 'idle';
+            squirrel.targetRobotId = null;
+            robot.state = 'in_repair';
+            robot.x = REPAIR_STATION.x;
+            robot.y = REPAIR_STATION.y;
+            enqueueRobotForWash(robot.id);
+          } else {
+            const spd = 165;
+            squirrel.x += (dx / dist) * spd * dt;
+            squirrel.y += (dy / dist) * spd * dt;
+            squirrel.facing = dx >= 0 ? 1 : -1;
+            // Robot rides right behind Squirrel
+            robot.x = squirrel.x - squirrel.facing * 32;
+            robot.y = squirrel.y + 6;
+          }
+        }
+      }
+
+      // ============================================================
+      // 6. WASH STATION MINI-GAME LOGIC
+      // ============================================================
+      function enqueueRobotForWash(robotId) {
+        if (!washState.waitingQueue.includes(robotId) && washState.activeRobotId !== robotId) {
+          washState.waitingQueue.push(robotId);
+        }
+        updateWashCallout();
+        // Automatically open the wash tub if not already open!
+        if (washModal.classList.contains('hidden')) {
+          openWashStation(robotId);
+        }
+      }
+
+      function updateWashCallout() {
+        const dirtyInRepair = robots.filter(r => r.state === 'in_repair');
+        if (dirtyInRepair.length > 0) {
+          openWashBtn.classList.remove('hidden');
+          openWashText.textContent = `Wash ${dirtyInRepair[0].name}! (${dirtyInRepair.length})`;
+        } else {
+          openWashBtn.classList.add('hidden');
+        }
+      }
+
+      function openWashStation(robotId) {
+        const robot = robots.find(r => r.id === robotId);
+        if (!robot) return;
+
+        washState.activeRobotId = robotId;
+        washState.waitingQueue = washState.waitingQueue.filter(id => id !== robotId);
+        washState.phase = 'soap';
+        washState.tool = 'soap';
+        washState.dryProgress = 0;
+        washState.autoWashing = false;
+        washState.bubbles = [];
+        washState.droplets = [];
+
+        // Generate 9 muddy/poop spots on the robot
+        washState.spots = [];
+        const cx = 280, cy = 185;
+        for (let i = 0; i < 9; i++) {
+          const ang = (i / 9) * Math.PI * 2 + Math.random() * 0.4;
+          const dist = 16 + Math.random() * 58;
+          washState.spots.push({
+            x: cx + Math.cos(ang) * dist,
+            y: cy + Math.sin(ang) * dist,
+            r: 15 + Math.random() * 9,
+            clean: 0
+          });
+        }
+
+        washSubtitle.textContent = `Squirrel rescued ${robot.name} (${robot.model})! Let's wash it!`;
+        finishWashBtn.classList.add('hidden');
+        autoWashBtn.classList.remove('hidden');
+        syncWashUI();
+        washModal.classList.remove('hidden');
+      }
+
+      function syncWashUI() {
+        const phase = washState.phase;
+        const activeCls = 'px-2.5 py-1.5 rounded-xl bg-amber-100 text-amber-900 border-2 border-amber-400 text-center';
+        const doneCls = 'px-2.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 border-2 border-emerald-400 text-center';
+        const idleCls = 'px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 border-2 border-transparent text-center';
+
+        stepSoapBadge.className = phase === 'soap' ? activeCls : doneCls;
+        stepRinseBadge.className = phase === 'rinse' ? activeCls : (phase === 'dry' || phase === 'done' ? doneCls : idleCls);
+        stepDryBadge.className = phase === 'dry' ? activeCls : (phase === 'done' ? doneCls : idleCls);
+
+        document.querySelectorAll('.wash-tool-btn').forEach(btn => {
+          const t = btn.dataset.washtool;
+          if (t === washState.tool) {
+            btn.classList.add('ring-2', 'ring-amber-500', 'scale-105');
+          } else {
+            btn.classList.remove('ring-2', 'ring-amber-500', 'scale-105');
+          }
+        });
+
+        if (phase === 'soap') {
+          washInstructionOverlay.textContent = '1. Rub the soapy sponge over the brown spots!';
+        } else if (phase === 'rinse') {
+          washInstructionOverlay.textContent = '2. Spray water to rinse away all the soap bubbles!';
+        } else if (phase === 'dry') {
+          washInstructionOverlay.textContent = '3. Wave the dryer to make it sparkle clean!';
+        } else {
+          washInstructionOverlay.textContent = '🎉 Squeaky clean! Ready to vacuum again!';
+          finishWashBtn.classList.remove('hidden');
+          autoWashBtn.classList.add('hidden');
+        }
+      }
+
+      function applyWashInteraction(wx, wy) {
+        if (washState.phase === 'done') return;
+        const cx = 280, cy = 185;
+        const distToRobot = Math.hypot(wx - cx, wy - cy);
+        if (distToRobot > 115) return;
+
+        if (washState.tool === 'soap' && washState.phase === 'soap') {
+          let scrubbedAny = false;
+          for (const s of washState.spots) {
+            if (Math.hypot(wx - s.x, wy - s.y) < 38 && s.clean < 1) {
+              s.clean = Math.min(1, s.clean + 0.22);
+              scrubbedAny = true;
+            }
+          }
+          if (Math.random() < 0.45 && washState.bubbles.length < 48) {
+            washState.bubbles.push({
+              x: wx + (Math.random() - 0.5) * 30,
+              y: wy + (Math.random() - 0.5) * 30,
+              r: 10 + Math.random() * 14,
+              rinsed: false
+            });
+            sfx.bubble();
+          }
+          const allScrubbed = washState.spots.every(s => s.clean >= 0.95);
+          if (allScrubbed && washState.bubbles.length >= 10) {
+            washState.phase = 'rinse';
+            washState.tool = 'rinse';
+            sfx.charge();
+            syncWashUI();
+          }
+        } else if (washState.tool === 'rinse' && washState.phase === 'rinse') {
+          for (let i = 0; i < 3; i++) {
+            washState.droplets.push({
+              x: wx + (Math.random() - 0.5) * 24,
+              y: wy + (Math.random() - 0.5) * 24,
+              vx: (Math.random() - 0.5) * 40,
+              vy: 45 + Math.random() * 50,
+              life: 0.6,
+              color: '#38bdf8'
+            });
+          }
+          let popped = false;
+          for (const b of washState.bubbles) {
+            if (!b.rinsed && Math.hypot(wx - b.x, wy - b.y) < 46) {
+              b.rinsed = true;
+              popped = true;
+            }
+          }
+          if (popped) sfx.rinse();
+          const remaining = washState.bubbles.filter(b => !b.rinsed).length;
+          if (remaining === 0) {
+            washState.phase = 'dry';
+            washState.tool = 'dry';
+            sfx.charge();
+            syncWashUI();
+          }
+        } else if (washState.tool === 'dry' && washState.phase === 'dry') {
+          washState.dryProgress = Math.min(1, washState.dryProgress + 0.045);
+          for (let i = 0; i < 2; i++) {
+            washState.droplets.push({
+              x: wx + (Math.random() - 0.5) * 30,
+              y: wy + (Math.random() - 0.5) * 30,
+              vx: (Math.random() - 0.5) * 55,
+              vy: -30 - Math.random() * 35,
+              life: 0.8,
+              color: '#facc15',
+              star: true
+            });
+          }
+          if (Math.random() < 0.25) sfx.bubble();
+          if (washState.dryProgress >= 1) {
+            washState.phase = 'done';
+            washState.autoWashing = false;
+            sfx.fanfare();
+            syncWashUI();
+          }
+        }
+      }
+
+      function finishWashAndRelease() {
+        const robot = robots.find(r => r.id === washState.activeRobotId);
+        if (robot) {
+          robot.state = 'vacuuming';
+          robot.x = REPAIR_STATION.x - 105;
+          robot.y = REPAIR_STATION.y - 20;
+          robot.angle = Math.PI + (Math.random() - 0.5) * 0.6;
+          robot.targetAngle = robot.angle;
+          robot.cleanSparkleTimer = 4.0;
+          say(robot, 'So fresh & clean! ✨', 2.4);
+          for (let i = 0; i < 12; i++) {
+            addEffect('sparkle', robot.x + (Math.random() - 0.5) * 40, robot.y + (Math.random() - 0.5) * 40, '', '#38bdf8');
+          }
+        }
+        washState.activeRobotId = null;
+        washState.autoWashing = false;
+
+        // If another robot is waiting in repair, open for it next; otherwise close modal
+        const nextDirty = robots.find(r => r.state === 'in_repair');
+        if (nextDirty) {
+          openWashStation(nextDirty.id);
+        } else {
+          washModal.classList.add('hidden');
+        }
+        updateWashCallout();
+        updatePopover();
+      }
+
+      // ============================================================
+      // 7. ROBOT SIMULATION UPDATE
+      // ============================================================
+      function normalizeAngle(a) {
+        while (a > Math.PI) a -= Math.PI * 2;
+        while (a < -Math.PI) a += Math.PI * 2;
+        return a;
+      }
+
+      function updateRobots(dt) {
+        for (const r of robots) {
+          if (r.speechTimer > 0) r.speechTimer -= dt;
+          if (r.cleanSparkleTimer > 0) {
+            r.cleanSparkleTimer -= dt;
+            if (Math.random() < 0.22) {
+              addEffect('sparkle', r.x + (Math.random() - 0.5) * 40, r.y + (Math.random() - 0.5) * 40, '', '#38bdf8');
+            }
+          }
+          if (r.dodgeCooldown > 0) r.dodgeCooldown -= dt;
+
+          if (r.state === 'vacuuming') {
+            r.brushAngle += dt * 9;
+            // Slowly deplete battery outside charging base
+            r.battery = Math.max(0, r.battery - dt * 0.35);
+
+            if (r.battery <= 0) {
+              r.state = 'sleeping';
+              say(r, 'Battery empty! ZzZ 🔋', 3.0);
+              continue;
+            } else if (r.battery < 18 && r.speechTimer <= 0 && Math.random() < 0.01) {
+              say(r, 'Getting sleepy... 🔋', 1.8);
+            }
+
+            // Random wandering
+            r.wanderTimer -= dt;
+            if (r.wanderTimer <= 0) {
+              r.targetAngle = r.angle + (Math.random() - 0.5) * 1.9;
+              r.wanderTimer = 1.2 + Math.random() * 2.2;
+            }
+
+            // Gently steer toward nearby rice/paper if close (makes vacuuming feel smart!)
+            let nearestGood = null;
+            let nearestGoodDist = 110;
+            for (const m of messes) {
+              if (m.type === 'poop') continue;
+              const d = Math.hypot(m.x - r.x, m.y - r.y);
+              if (d < nearestGoodDist) {
+                nearestGoodDist = d;
+                nearestGood = m;
+              }
+            }
+            if (nearestGood) {
+              r.targetAngle = Math.atan2(nearestGood.y - r.y, nearestGood.x - r.x);
+            }
+
+            // DOG POOP AVOIDANCE!
+            // Robots try to spot dog poop ahead of them and turn away,
+            // but their sensors have a short range and slow reaction so they can still accidentally eat it!
+            let avoidX = 0, avoidY = 0;
+            let avoiding = false;
+            for (let i = messes.length - 1; i >= 0; i--) {
+              const m = messes[i];
+              if (m.type !== 'poop') continue;
+              const dx = r.x - m.x;
+              const dy = r.y - m.y;
+              const dist = Math.hypot(dx, dy);
+
+              // Accidentally ate dog poop!
+              if (dist < r.radius + m.r - 6) {
+                triggerPoopAccident(r, i);
+                break;
+              }
+
+              // Short forward-only sensor (62px) with a reaction delay for newly dropped poop
+              const age = frameTime - (m.spawnTime || 0);
+              const angleToPoop = Math.atan2(m.y - r.y, m.x - r.x);
+              const relAngle = Math.abs(normalizeAngle(angleToPoop - r.angle));
+              if (dist < 62 && age > 0.65 && relAngle < 1.15) {
+                const strength = (62 - dist) / 62;
+                avoidX += (dx / (dist || 1)) * strength * 1.4;
+                avoidY += (dy / (dist || 1)) * strength * 1.4;
+                avoiding = true;
+              }
+            }
+            if (r.state !== 'vacuuming') continue;
+
+            if (avoiding) {
+              r.targetAngle = Math.atan2(avoidY, avoidX);
+              if (r.dodgeCooldown <= 0) {
+                say(r, 'Ew! Dodging poop! 😖', 1.2);
+                sfx.dodge();
+                r.dodgeCooldown = 2.6;
+              }
+            }
+
+            // Smooth steering (slower avoidance turn so robots can still get caught!)
+            const diff = normalizeAngle(r.targetAngle - r.angle);
+            r.angle += Math.sign(diff) * Math.min(Math.abs(diff), dt * (avoiding ? 3.0 : 3.2));
+
+            r.x += Math.cos(r.angle) * r.speed * dt;
+            r.y += Math.sin(r.angle) * r.speed * dt;
+
+            // Keep inside contained room walls & away from repair station box
+            const minX = WALL + r.radius + 4;
+            const maxX = WORLD_W - WALL - r.radius - 4;
+            const minY = WALL + 52 + r.radius;
+            const maxY = WORLD_H - WALL - r.radius - 4;
+
+            if (r.x < minX) { r.x = minX; r.angle = Math.PI - r.angle; r.targetAngle = r.angle; }
+            if (r.x > maxX) { r.x = maxX; r.angle = Math.PI - r.angle; r.targetAngle = r.angle; }
+            if (r.y < minY) { r.y = minY; r.angle = -r.angle; r.targetAngle = r.angle; }
+            if (r.y > maxY) { r.y = maxY; r.angle = -r.angle; r.targetAngle = r.angle; }
+
+            // Bounce off Repair Station zone
+            const rsLeft = REPAIR_STATION.x - REPAIR_STATION.w / 2 - r.radius;
+            const rsTop = REPAIR_STATION.y - REPAIR_STATION.h / 2 - r.radius;
+            if (r.x > rsLeft && r.y > rsTop) {
+              if (r.x - rsLeft < r.y - rsTop) {
+                r.x = rsLeft;
+                r.angle = Math.PI - r.angle;
+              } else {
+                r.y = rsTop;
+                r.angle = -r.angle;
+              }
+              r.targetAngle = r.angle;
+            }
+
+            // Vacuum up Rice & Paper!
+            for (let i = messes.length - 1; i >= 0; i--) {
+              const m = messes[i];
+              if (m.type === 'poop') continue;
+              const dist = Math.hypot(m.x - r.x, m.y - r.y);
+              if (dist < r.radius + m.r - 4) {
+                messes.splice(i, 1);
+                cleanedTotal++;
+                cleanedCountEl.textContent = cleanedTotal;
+                addEffect('sparkle', m.x, m.y, '+1', '#10b981');
+                sfx.vacuum();
+              }
+            }
+          } else if (r.state === 'returning') {
+            r.brushAngle += dt * 3;
+            const dx = r.dockX - r.x;
+            const dy = r.dockY - r.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 8) {
+              r.x = r.dockX;
+              r.y = r.dockY;
+              r.angle = Math.PI / 2;
+              r.state = 'charging';
+              say(r, 'Charging! 🔋', 1.6);
+              sfx.click();
+            } else {
+              const desired = Math.atan2(dy, dx);
+              const diff = normalizeAngle(desired - r.angle);
+              r.angle += Math.sign(diff) * Math.min(Math.abs(diff), dt * 6);
+              const spd = Math.max(65, r.speed * 1.15);
+              r.x += (dx / dist) * spd * dt;
+              r.y += (dy / dist) * spd * dt;
+            }
+          } else if (r.state === 'charging') {
+            r.x = r.dockX;
+            r.y = r.dockY;
+            r.angle = Math.PI / 2;
+            if (r.battery < 100) {
+              r.battery = Math.min(100, r.battery + dt * 5.5);
+              if (r.battery === 100) {
+                say(r, 'Fully charged! ✨', 2.0);
+                sfx.charge();
+              }
+            }
+          }
+        }
+
+        // Gentle robot-to-robot collision separation
+        for (let i = 0; i < robots.length; i++) {
+          for (let j = i + 1; j < robots.length; j++) {
+            const a = robots[i], b = robots[j];
+            if (a.state !== 'vacuuming' && b.state !== 'vacuuming') continue;
+            if (a.state === 'in_repair' || b.state === 'in_repair' || a.state === 'being_rescued' || b.state === 'being_rescued') continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.hypot(dx, dy);
+            const minDist = a.radius + b.radius + 4;
+            if (dist > 0 && dist < minDist) {
+              const push = (minDist - dist) * 0.5;
+              const nx = dx / dist, ny = dy / dist;
+              if (a.state === 'vacuuming') {
+                a.x -= nx * push;
+                a.y -= ny * push;
+                a.angle = Math.atan2(-ny, -nx);
+                a.targetAngle = a.angle;
+              }
+              if (b.state === 'vacuuming') {
+                b.x += nx * push;
+                b.y += ny * push;
+                b.angle = Math.atan2(ny, nx);
+                b.targetAngle = b.angle;
+              }
+            }
+          }
+        }
+      }
+
+      // ============================================================
+      // 8. CANVAS RENDERING — PLAYROOM
+      // ============================================================
+      function drawPlayroom() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = roomCanvas.getBoundingClientRect();
+        const targetW = Math.round(rect.width * dpr);
+        const targetH = Math.round(rect.height * dpr);
+        if (roomCanvas.width !== targetW || roomCanvas.height !== targetH) {
+          roomCanvas.width = targetW;
+          roomCanvas.height = targetH;
+        }
+
+        ctx.save();
+        ctx.scale(roomCanvas.width / WORLD_W, roomCanvas.height / WORLD_H);
+
+        // 1. Warm wooden floorboards
+        ctx.fillStyle = '#f3d5a5';
+        ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+        ctx.strokeStyle = 'rgba(161, 98, 7, 0.14)';
+        ctx.lineWidth = 2;
+        for (let y = WALL; y < WORLD_H - WALL; y += 38) {
+          ctx.beginPath();
+          ctx.moveTo(WALL, y);
+          ctx.lineTo(WORLD_W - WALL, y);
+          ctx.stroke();
+        }
+        for (let row = 0; row < 16; row++) {
+          const y = WALL + row * 38;
+          const offset = (row % 2) * 110;
+          for (let x = WALL + offset; x < WORLD_W - WALL; x += 220) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + 38);
+            ctx.stroke();
+          }
+        }
+
+        // 2. Cozy pastel playroom rug in the center
+        ctx.save();
+        const rugX = 250, rugY = 185, rugW = 520, rugH = 300;
+        ctx.fillStyle = '#fef3c7';
+        roundRect(ctx, rugX, rugY, rugW, rugH, 34);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 6;
+        ctx.setLineDash([14, 10]);
+        roundRect(ctx, rugX + 12, rugY + 12, rugW - 24, rugH - 24, 24);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // 3. Walls / Baseboards
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(0, 0, WORLD_W, WALL);
+        ctx.fillRect(0, WORLD_H - WALL, WORLD_W, WALL);
+        ctx.fillRect(0, 0, WALL, WORLD_H);
+        ctx.fillRect(WORLD_W - WALL, 0, WALL, WORLD_H);
+
+        ctx.strokeStyle = '#92400e';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(WALL, WALL, WORLD_W - WALL * 2, WORLD_H - WALL * 2);
+
+        // Decorative potted plants in bottom-left & top-right corners
+        drawPlant(ctx, WALL + 28, WORLD_H - WALL - 28);
+        drawPlant(ctx, WORLD_W - WALL - 28, WALL + 28);
+
+        // 4. Charging Docks along top wall
+        for (const r of robots) {
+          drawChargingDock(ctx, r);
+        }
+
+        // 5. Squirrel's Repair & Wash Station (bottom-right)
+        drawRepairStation(ctx);
+
+        // 6. Messes on the floor
+        for (const m of messes) {
+          drawMess(ctx, m);
+        }
+
+        // 7. Robots (skip ones currently inside repair station modal)
+        for (const r of robots) {
+          if (r.state === 'in_repair') continue;
+          drawRobot(ctx, r);
+        }
+
+        // 8. Squirrel Rescuer
+        drawSquirrel(ctx);
+
+        // 9. Floating Sparkles / Effects
+        for (const e of effects) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, e.life);
+          if (e.type === 'sparkle') {
+            ctx.fillStyle = e.color;
+            drawStar(ctx, e.x, e.y, 4, e.size, e.size * 0.45);
+            if (e.text) {
+              ctx.font = '800 13px system-ui';
+              ctx.fillStyle = '#065f46';
+              ctx.fillText(e.text, e.x + 8, e.y);
+            }
+          } else if (e.type === 'stink') {
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.size * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function roundRect(c, x, y, w, h, r) {
+        c.beginPath();
+        c.moveTo(x + r, y);
+        c.arcTo(x + w, y, x + w, y + h, r);
+        c.arcTo(x + w, y + h, x, y + h, r);
+        c.arcTo(x, y + h, x, y, r);
+        c.arcTo(x, y, x + w, y, r);
+        c.closePath();
+      }
+
+      function drawPlant(c, x, y) {
+        c.save();
+        c.fillStyle = '#b45309';
+        c.beginPath();
+        c.arc(x, y, 20, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#16a34a';
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          c.beginPath();
+          c.ellipse(x + Math.cos(a) * 12, y + Math.sin(a) * 12, 11, 5, a, 0, Math.PI * 2);
+          c.fill();
+        }
+        c.fillStyle = '#22c55e';
+        c.beginPath();
+        c.arc(x, y, 7, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+
+      function drawChargingDock(c, r) {
+        c.save();
+        const x = r.dockX, y = r.dockY;
+        // Pad
+        c.fillStyle = '#1e293b';
+        roundRect(c, x - 36, WALL + 2, 72, 24, 6);
+        c.fill();
+
+        // Charging mat
+        c.fillStyle = 'rgba(15, 23, 42, 0.14)';
+        roundRect(c, x - 38, WALL + 22, 76, 42, 12);
+        c.fill();
+
+        // LED indicator
+        const isCharging = r.state === 'charging';
+        c.fillStyle = isCharging ? (r.battery >= 100 ? '#22c55e' : '#facc15') : '#64748b';
+        c.beginPath();
+        c.arc(x, WALL + 13, 4.5, 0, Math.PI * 2);
+        c.fill();
+
+        // Color tag matching robot
+        c.fillStyle = r.bodyColor;
+        c.strokeStyle = '#334155';
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.arc(x - 22, WALL + 13, 5, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+
+        // Label
+        c.fillStyle = '#fff';
+        c.font = '700 10px system-ui';
+        c.textAlign = 'center';
+        c.fillText(r.name, x + 6, WALL + 17);
+        c.restore();
+      }
+
+      function drawRepairStation(c) {
+        c.save();
+        const { x, y, w, h } = REPAIR_STATION;
+        const left = x - w / 2;
+        const top = y - h / 2;
+
+        // Station floor tile
+        c.fillStyle = '#e0f2fe';
+        roundRect(c, left, top, w, h, 18);
+        c.fill();
+        c.strokeStyle = '#0284c7';
+        c.lineWidth = 3.5;
+        c.stroke();
+
+        // Bubble tub inside
+        c.fillStyle = '#bae6fd';
+        roundRect(c, left + 14, top + 28, w - 28, h - 40, 14);
+        c.fill();
+        c.strokeStyle = '#38bdf8';
+        c.lineWidth = 2;
+        c.stroke();
+
+        // Little floating soap bubbles in tub
+        const t = frameTime * 2;
+        for (let i = 0; i < 5; i++) {
+          const bx = left + 30 + i * 22;
+          const by = top + 58 + Math.sin(t + i) * 6;
+          c.fillStyle = 'rgba(255,255,255,0.85)';
+          c.beginPath();
+          c.arc(bx, by, 6 + (i % 2) * 3, 0, Math.PI * 2);
+          c.fill();
+        }
+
+        // Sign header
+        c.fillStyle = '#0369a1';
+        roundRect(c, left + 8, top - 12, w - 16, 24, 10);
+        c.fill();
+        c.fillStyle = '#ffffff';
+        c.font = '800 11px system-ui';
+        c.textAlign = 'center';
+        c.fillText('🐿️ WASH & REPAIR', x, top + 4);
+
+        // If a robot is inside repair, show a pulsing badge
+        const inRepairCount = robots.filter(r => r.state === 'in_repair').length;
+        if (inRepairCount > 0) {
+          c.fillStyle = '#f59e0b';
+          c.beginPath();
+          c.arc(left + w - 8, top - 6, 12, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#fff';
+          c.font = '900 12px system-ui';
+          c.fillText(String(inRepairCount), left + w - 8, top - 2);
+        }
+
+        c.restore();
+      }
+
+      function drawMess(c, m) {
+        c.save();
+        c.translate(m.x, m.y);
+        c.rotate(m.rot || 0);
+
+        if (m.type === 'rice') {
+          c.fillStyle = '#ffffff';
+          c.strokeStyle = '#cbd5e1';
+          c.lineWidth = 1;
+          c.beginPath();
+          c.ellipse(0, 0, 5.5, 2.6, 0, 0, Math.PI * 2);
+          c.fill();
+          c.stroke();
+        } else if (m.type === 'paper') {
+          c.fillStyle = m.color;
+          c.strokeStyle = 'rgba(15, 23, 42, 0.2)';
+          c.lineWidth = 1;
+          c.beginPath();
+          c.moveTo(-9, -6);
+          c.lineTo(7, -8);
+          c.lineTo(10, 4);
+          c.lineTo(-4, 8);
+          c.closePath();
+          c.fill();
+          c.stroke();
+        } else if (m.type === 'poop') {
+          // Cute cartoon poop swirl
+          c.fillStyle = '#78350f';
+          c.beginPath();
+          c.ellipse(0, 7, 13, 6.5, 0, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#92400e';
+          c.beginPath();
+          c.ellipse(0, 1, 10, 5.5, 0, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#78350f';
+          c.beginPath();
+          c.moveTo(-6, -2);
+          c.quadraticCurveTo(0, -14, 6, -2);
+          c.fill();
+
+          // Cute tiny eyes on the poop
+          c.fillStyle = '#ffffff';
+          c.beginPath();
+          c.arc(-3.5, 2, 2.1, 0, Math.PI * 2);
+          c.arc(3.5, 2, 2.1, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#1e293b';
+          c.beginPath();
+          c.arc(-3.5, 2, 1, 0, Math.PI * 2);
+          c.arc(3.5, 2, 1, 0, Math.PI * 2);
+          c.fill();
+
+          // Wavy stink lines
+          c.strokeStyle = 'rgba(120, 53, 15, 0.45)';
+          c.lineWidth = 1.6;
+          const wave = Math.sin(frameTime * 5) * 2;
+          c.beginPath();
+          c.moveTo(-5, -12);
+          c.quadraticCurveTo(-8 + wave, -17, -4, -22);
+          c.moveTo(5, -12);
+          c.quadraticCurveTo(8 - wave, -17, 4, -22);
+          c.stroke();
+        }
+
+        c.restore();
+      }
+
+      function drawRobot(c, r, overrideScale = 1, isWashView = false) {
+        c.save();
+        c.translate(r.x, r.y);
+        c.scale(overrideScale, overrideScale);
+
+        // Selection ring
+        if (!isWashView && selectedRobotId === r.id) {
+          c.save();
+          c.strokeStyle = '#f59e0b';
+          c.lineWidth = 3.5;
+          c.setLineDash([8, 5]);
+          c.beginPath();
+          c.arc(0, 0, r.radius + 9 + Math.sin(frameTime * 6) * 2, 0, Math.PI * 2);
+          c.stroke();
+          c.restore();
+        }
+
+        c.save();
+        c.rotate(r.angle);
+
+        // Drop shadow
+        c.fillStyle = 'rgba(15, 23, 42, 0.22)';
+        c.beginPath();
+        c.arc(2, 4, r.radius, 0, Math.PI * 2);
+        c.fill();
+
+        // Spinning side brushes
+        const drawBrush = (bx, by) => {
+          c.save();
+          c.translate(bx, by);
+          c.rotate(r.brushAngle);
+          c.strokeStyle = r.shape === 'shark' ? '#38bdf8' : '#94a3b8';
+          c.lineWidth = 2;
+          for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2;
+            c.beginPath();
+            c.moveTo(0, 0);
+            c.lineTo(Math.cos(a) * 11, Math.sin(a) * 11);
+            c.stroke();
+          }
+          c.restore();
+        };
+
+        if (r.shape === 'shark') {
+          drawBrush(r.radius * 0.65, -r.radius * 0.72);
+          drawBrush(r.radius * 0.65, r.radius * 0.72);
+        } else if (r.shape === 'yellow_rc') {
+          // Small front mini-brush on Yellow RC
+          drawBrush(r.radius * 0.78, r.radius * 0.52);
+        } else {
+          drawBrush(r.radius * 0.68, r.radius * 0.68);
+        }
+
+        // Main Robot Body
+        if (r.shape === 'shark') {
+          // Distinctive Black Shark sleek D-front body
+          c.fillStyle = r.bodyColor;
+          c.strokeStyle = '#09090b';
+          c.lineWidth = 2.5;
+          c.beginPath();
+          c.arc(0, 0, r.radius, Math.PI * 0.35, Math.PI * 1.65);
+          c.quadraticCurveTo(r.radius + 6, 0, Math.cos(Math.PI * 0.35) * r.radius, Math.sin(Math.PI * 0.35) * r.radius);
+          c.closePath();
+          c.fill();
+          c.stroke();
+
+          // Sleek Shark fin ridge & glossy highlight
+          c.strokeStyle = '#3f3f46';
+          c.lineWidth = 2;
+          c.beginPath();
+          c.arc(0, 0, r.radius - 6, 0.5, Math.PI * 2 - 0.5);
+          c.stroke();
+
+          // Shark blue LED bar
+          c.fillStyle = r.state === 'dirty_waiting' ? '#ef4444' : '#0ea5e9';
+          roundRect(c, -12, -4, 14, 8, 4);
+          c.fill();
+        } else if (r.shape === 'ecovacs') {
+          // Ecovacs T80 Omni — sleek pearl-white body, brushed silver top trim, front sensor & rear roller mop
+          // Rear OZMO roller mop bar peeking out slightly
+          c.fillStyle = '#0891b2';
+          roundRect(c, -r.radius - 3, -15, 10, 30, 4);
+          c.fill();
+
+          // Main pearl-white chassis
+          c.fillStyle = r.bodyColor;
+          c.strokeStyle = '#cbd5e1';
+          c.lineWidth = 2.5;
+          c.beginPath();
+          c.arc(0, 0, r.radius, 0, Math.PI * 2);
+          c.fill();
+          c.stroke();
+
+          // Brushed silver metallic outer accent ring
+          c.strokeStyle = '#94a3b8';
+          c.lineWidth = 3.5;
+          c.beginPath();
+          c.arc(0, 0, r.radius - 5.5, 0, Math.PI * 2);
+          c.stroke();
+
+          // Front recessed dToF / AIVI sensor window
+          c.fillStyle = '#0f172a';
+          roundRect(c, r.radius - 6, -11, 5.5, 22, 2.5);
+          c.fill();
+
+          // Signature Ecovacs T80 metallic center disc + glowing cyan status ring
+          c.fillStyle = '#e2e8f0';
+          c.strokeStyle = '#64748b';
+          c.lineWidth = 1.5;
+          c.beginPath();
+          c.arc(-4, 0, 11.5, 0, Math.PI * 2);
+          c.fill();
+          c.stroke();
+
+          c.strokeStyle = r.state === 'charging' ? '#22c55e' : (r.battery < 20 ? '#ef4444' : '#06b6d4');
+          c.lineWidth = 2.4;
+          c.beginPath();
+          c.arc(-4, 0, 7, 0, Math.PI * 2);
+          c.stroke();
+        } else if (r.shape === 'yellow_rc') {
+          // Custom Yellow RC Robot — smaller body with chunky external RC wheels outside on axles!
+          const wheelW = 20;
+          const wheelH = 9.5;
+          const axleY = r.radius + 5.5;
+
+          // Metal axles sticking out both sides
+          c.fillStyle = '#64748b';
+          c.fillRect(-4, -axleY, 8, axleY * 2);
+
+          // Left & Right external chunky RC tires with animated rolling treads
+          const treadOffset = (r.brushAngle * 2.2) % 6;
+          [-axleY - wheelH / 2 + 1, axleY - wheelH / 2 - 1].forEach(wy => {
+            c.fillStyle = '#18181b';
+            c.strokeStyle = '#09090b';
+            c.lineWidth = 1.5;
+            roundRect(c, -wheelW / 2 - 1, wy, wheelW, wheelH, 3.5);
+            c.fill();
+            c.stroke();
+
+            // Animated rubber tread ridges
+            c.strokeStyle = '#52525b';
+            c.lineWidth = 1.6;
+            for (let tx = -wheelW / 2 + 2 + treadOffset; tx < wheelW / 2 - 2; tx += 6) {
+              c.beginPath();
+              c.moveTo(tx, wy + 1.5);
+              c.lineTo(tx, wy + wheelH - 1.5);
+              c.stroke();
+            }
+
+            // Yellow hubcap accent on outside edge
+            c.fillStyle = '#facc15';
+            const hubY = wy < 0 ? wy - 1.2 : wy + wheelH - 1.2;
+            c.fillRect(-4, hubY, 8, 2.4);
+          });
+
+          // Smaller bright yellow rounded body
+          c.fillStyle = r.bodyColor;
+          c.strokeStyle = r.rimColor;
+          c.lineWidth = 2.8;
+          c.beginPath();
+          c.arc(0, 0, r.radius, 0, Math.PI * 2);
+          c.fill();
+          c.stroke();
+
+          // Sporty black/orange RC racing stripe & front bumper
+          c.fillStyle = '#1e293b';
+          roundRect(c, -r.radius + 4, -3.5, r.radius * 1.1, 7, 3);
+          c.fill();
+
+          // Cute little RC antenna nub at rear
+          c.strokeStyle = '#334155';
+          c.lineWidth = 2;
+          c.beginPath();
+          c.moveTo(-r.radius + 3, 0);
+          c.lineTo(-r.radius - 7, -5);
+          c.stroke();
+          c.fillStyle = '#f97316';
+          c.beginPath();
+          c.arc(-r.radius - 7, -5, 3, 0, Math.PI * 2);
+          c.fill();
+        } else {
+          // Classic Round Roomba Body
+          c.fillStyle = r.bodyColor;
+          c.strokeStyle = r.rimColor;
+          c.lineWidth = 3;
+          c.beginPath();
+          c.arc(0, 0, r.radius, 0, Math.PI * 2);
+          c.fill();
+          c.stroke();
+
+          // Front bumper arc
+          c.strokeStyle = r.id === 'white-roomba' ? '#94a3b8' : '#1e293b';
+          c.lineWidth = 3;
+          c.beginPath();
+          c.arc(0, 0, r.radius - 1.5, -0.85, 0.85);
+          c.stroke();
+
+          // Inner ring & CLEAN button
+          c.fillStyle = r.buttonColor;
+          c.strokeStyle = r.rimColor;
+          c.lineWidth = 1.5;
+          c.beginPath();
+          c.arc(-3, 0, 10, 0, Math.PI * 2);
+          c.fill();
+          c.stroke();
+
+          // Status LED ring around CLEAN button
+          c.strokeStyle = r.state === 'charging' ? '#22c55e' : (r.battery < 20 ? '#ef4444' : r.accentColor);
+          c.lineWidth = 2.2;
+          c.beginPath();
+          c.arc(-3, 0, 6.5, 0, Math.PI * 2);
+          c.stroke();
+        }
+
+        // Expressive Cute Eyes near the front!
+        const eyeX = r.radius * 0.44;
+        const eyeSep = r.shape === 'yellow_rc' ? 6.8 : 8.5;
+        if (r.state === 'sleeping') {
+          // Closed sleepy eyes
+          c.strokeStyle = r.shape === 'shark' || r.id === 'dark-grey-roomba' ? '#f8fafc' : '#1e293b';
+          c.lineWidth = 2.2;
+          c.beginPath();
+          c.arc(eyeX, -eyeSep, 4, 0.2, Math.PI - 0.2);
+          c.stroke();
+          c.beginPath();
+          c.arc(eyeX, eyeSep, 4, 0.2, Math.PI - 0.2);
+          c.stroke();
+        } else if (r.state === 'dirty_waiting' || r.state === 'being_rescued') {
+          // Dizzy X eyes
+          c.strokeStyle = '#ef4444';
+          c.lineWidth = 2.2;
+          [-eyeSep, eyeSep].forEach(ey => {
+            c.beginPath();
+            c.moveTo(eyeX - 3, ey - 3); c.lineTo(eyeX + 3, ey + 3);
+            c.moveTo(eyeX + 3, ey - 3); c.lineTo(eyeX - 3, ey + 3);
+            c.stroke();
+          });
+        } else {
+          // Happy bright eyes
+          [-eyeSep, eyeSep].forEach(ey => {
+            c.fillStyle = '#ffffff';
+            c.beginPath();
+            c.arc(eyeX, ey, 5.2, 0, Math.PI * 2);
+            c.fill();
+            c.fillStyle = '#0f172a';
+            c.beginPath();
+            c.arc(eyeX + 1.5, ey, 2.6, 0, Math.PI * 2);
+            c.fill();
+            c.fillStyle = '#ffffff';
+            c.beginPath();
+            c.arc(eyeX + 2.2, ey - 1, 1, 0, Math.PI * 2);
+            c.fill();
+          });
+        }
+
+        // Dirty spots on robot when waiting for rescue
+        if (!isWashView && (r.state === 'dirty_waiting' || r.state === 'being_rescued')) {
+          c.fillStyle = 'rgba(120, 53, 15, 0.85)';
+          c.beginPath(); c.arc(-10, -10, 8, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.arc(6, 12, 7, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.arc(-14, 8, 6, 0, Math.PI * 2); c.fill();
+        }
+
+        c.restore(); // undo rotation
+
+        // Mini battery bar underneath robot (playroom view only)
+        if (!isWashView) {
+          const bw = 38, bh = 6;
+          c.fillStyle = 'rgba(15, 23, 42, 0.65)';
+          roundRect(c, -bw / 2, r.radius + 7, bw, bh, 3);
+          c.fill();
+          const pct = r.battery / 100;
+          c.fillStyle = pct > 0.45 ? '#22c55e' : (pct > 0.2 ? '#f59e0b' : '#ef4444');
+          roundRect(c, -bw / 2 + 1, r.radius + 8, (bw - 2) * pct, bh - 2, 2);
+          c.fill();
+
+          if (r.state === 'charging') {
+            c.fillStyle = '#facc15';
+            c.font = '900 13px system-ui';
+            c.textAlign = 'center';
+            c.fillText('⚡', 0, -r.radius - 6);
+          }
+
+          // Speech bubble
+          if (r.speechTimer > 0 && r.speech) {
+            drawSpeechBubble(c, 0, -r.radius - 18, r.speech);
+          }
+        }
+
+        c.restore();
+      }
+
+      function drawSquirrel(c) {
+        c.save();
+        const hop = squirrel.state === 'idle' ? 0 : Math.abs(Math.sin(squirrel.hopPhase)) * 7;
+        c.translate(squirrel.x, squirrel.y - hop);
+
+        c.save();
+        c.scale(squirrel.facing, 1);
+
+        // Fluffy curved squirrel tail
+        c.fillStyle = '#d97706';
+        c.beginPath();
+        c.ellipse(-15, -6, 11, 16, -0.5, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#f59e0b';
+        c.beginPath();
+        c.ellipse(-14, -6, 7, 11, -0.5, 0, Math.PI * 2);
+        c.fill();
+
+        // Body
+        c.fillStyle = '#b45309';
+        c.beginPath();
+        c.ellipse(0, 4, 12, 13, 0, 0, Math.PI * 2);
+        c.fill();
+
+        // Cute Rescue Vest (bright yellow/cyan!)
+        c.fillStyle = '#38bdf8';
+        c.beginPath();
+        c.ellipse(1, 5, 10, 8, 0, 0, Math.PI * 2);
+        c.fill();
+
+        // Head
+        c.fillStyle = '#d97706';
+        c.beginPath();
+        c.arc(6, -9, 10, 0, Math.PI * 2);
+        c.fill();
+
+        // Ears
+        c.fillStyle = '#b45309';
+        c.beginPath();
+        c.ellipse(2, -19, 3.5, 5.5, -0.2, 0, Math.PI * 2);
+        c.ellipse(9, -19, 3.5, 5.5, 0.2, 0, Math.PI * 2);
+        c.fill();
+
+        // Eye & nose
+        c.fillStyle = '#0f172a';
+        c.beginPath();
+        c.arc(10, -10, 2.2, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.arc(10.8, -10.8, 0.8, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#451a03';
+        c.beginPath();
+        c.arc(15.5, -8, 2, 0, Math.PI * 2);
+        c.fill();
+
+        c.restore();
+
+        if (squirrel.speechTimer > 0 && squirrel.speech) {
+          drawSpeechBubble(c, 0, -34, squirrel.speech);
+        }
+
+        c.restore();
+      }
+
+      function drawSpeechBubble(c, x, y, text) {
+        c.save();
+        c.font = '800 11.5px system-ui';
+        const w = c.measureText(text).width + 18;
+        const h = 24;
+        c.fillStyle = 'rgba(255, 255, 255, 0.96)';
+        c.strokeStyle = '#cbd5e1';
+        c.lineWidth = 1.5;
+        roundRect(c, x - w / 2, y - h, w, h, 10);
+        c.fill();
+        c.stroke();
+        c.fillStyle = '#0f172a';
+        c.textAlign = 'center';
+        c.fillText(text, x, y - 8);
+        c.restore();
+      }
+
+      function drawStar(c, cx, cy, spikes, outerR, innerR) {
+        let rot = (Math.PI / 2) * 3;
+        const step = Math.PI / spikes;
+        c.beginPath();
+        c.moveTo(cx, cy - outerR);
+        for (let i = 0; i < spikes; i++) {
+          c.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+          rot += step;
+          c.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+          rot += step;
+        }
+        c.closePath();
+        c.fill();
+      }
+
+      // ============================================================
+      // 9. WASH STATION CANVAS RENDERING
+      // ============================================================
+      function drawWashCanvas(dt) {
+        if (washModal.classList.contains('hidden')) return;
+        const robot = robots.find(r => r.id === washState.activeRobotId);
+        if (!robot) return;
+
+        const W = 560, H = 350;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = washCanvas.getBoundingClientRect();
+        const tw = Math.round(rect.width * dpr);
+        const th = Math.round(rect.height * dpr);
+        if (washCanvas.width !== tw || washCanvas.height !== th) {
+          washCanvas.width = tw;
+          washCanvas.height = th;
+        }
+
+        // Auto-wash choreography
+        if (washState.autoWashing && washState.phase !== 'done') {
+          washState.autoAngle += dt * 5.2;
+          const ax = 280 + Math.cos(washState.autoAngle) * 58;
+          const ay = 185 + Math.sin(washState.autoAngle * 1.4) * 52;
+          washState.pointerX = ax;
+          washState.pointerY = ay;
+          applyWashInteraction(ax, ay);
+        }
+
+        wctx.save();
+        wctx.scale(washCanvas.width / W, washCanvas.height / H);
+
+        // Tile bathroom background
+        wctx.fillStyle = '#e0f2fe';
+        wctx.fillRect(0, 0, W, H);
+        wctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+        wctx.lineWidth = 1.5;
+        for (let x = 0; x < W; x += 40) {
+          wctx.beginPath(); wctx.moveTo(x, 0); wctx.lineTo(x, H); wctx.stroke();
+        }
+        for (let y = 0; y < H; y += 40) {
+          wctx.beginPath(); wctx.moveTo(0, y); wctx.lineTo(W, y); wctx.stroke();
+        }
+
+        // Big Wash Tub
+        wctx.fillStyle = '#ffffff';
+        wctx.strokeStyle = '#0284c7';
+        wctx.lineWidth = 6;
+        roundRect(wctx, 85, 65, 390, 245, 56);
+        wctx.fill();
+        wctx.stroke();
+
+        wctx.fillStyle = '#bae6fd';
+        roundRect(wctx, 102, 82, 356, 211, 44);
+        wctx.fill();
+
+        // Cheerful Squirrel helper sitting at the edge of the tub
+        wctx.save();
+        wctx.translate(72, 235);
+        wctx.scale(1.45, 1.45);
+        // Quick squirrel drawing
+        wctx.fillStyle = '#d97706';
+        wctx.beginPath(); wctx.ellipse(-12, -4, 9, 14, -0.5, 0, Math.PI * 2); wctx.fill();
+        wctx.fillStyle = '#b45309';
+        wctx.beginPath(); wctx.ellipse(0, 4, 11, 12, 0, 0, Math.PI * 2); wctx.fill();
+        wctx.fillStyle = '#38bdf8';
+        wctx.beginPath(); wctx.ellipse(1, 5, 9, 7, 0, 0, Math.PI * 2); wctx.fill();
+        wctx.fillStyle = '#d97706';
+        wctx.beginPath(); wctx.arc(5, -8, 9, 0, Math.PI * 2); wctx.fill();
+        wctx.fillStyle = '#0f172a';
+        wctx.beginPath(); wctx.arc(8, -9, 2, 0, Math.PI * 2); wctx.fill();
+        wctx.restore();
+
+        // Draw enlarged Robot in center of tub
+        const tempRobot = {
+          ...robot,
+          x: 280,
+          y: 185,
+          angle: -Math.PI / 2,
+          state: washState.phase === 'done' ? 'vacuuming' : 'dirty_waiting'
+        };
+        drawRobot(wctx, tempRobot, 2.7, true);
+
+        // Muddy spots
+        for (const s of washState.spots) {
+          if (s.clean >= 1) continue;
+          wctx.save();
+          wctx.globalAlpha = (1 - s.clean) * 0.9;
+          wctx.fillStyle = '#78350f';
+          wctx.beginPath();
+          wctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          wctx.fill();
+          wctx.restore();
+        }
+
+        // Soap bubbles
+        for (const b of washState.bubbles) {
+          if (b.rinsed) continue;
+          wctx.save();
+          wctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+          wctx.strokeStyle = '#7dd3fc';
+          wctx.lineWidth = 2;
+          wctx.beginPath();
+          wctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+          wctx.fill();
+          wctx.stroke();
+          wctx.fillStyle = '#ffffff';
+          wctx.beginPath();
+          wctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.25, 0, Math.PI * 2);
+          wctx.fill();
+          wctx.restore();
+        }
+
+        // Droplets & Sparkles
+        for (let i = washState.droplets.length - 1; i >= 0; i--) {
+          const d = washState.droplets[i];
+          d.x += d.vx * dt;
+          d.y += d.vy * dt;
+          d.life -= dt;
+          if (d.life <= 0) {
+            washState.droplets.splice(i, 1);
+            continue;
+          }
+          wctx.save();
+          wctx.globalAlpha = Math.max(0, d.life);
+          wctx.fillStyle = d.color;
+          if (d.star) {
+            drawStar(wctx, d.x, d.y, 4, 10, 4);
+          } else {
+            wctx.beginPath();
+            wctx.arc(d.x, d.y, 4.5, 0, Math.PI * 2);
+            wctx.fill();
+          }
+          wctx.restore();
+        }
+
+        // Done celebration sparkles
+        if (washState.phase === 'done') {
+          for (let i = 0; i < 6; i++) {
+            const a = frameTime * 2 + (i / 6) * Math.PI * 2;
+            wctx.fillStyle = '#facc15';
+            drawStar(wctx, 280 + Math.cos(a) * 95, 185 + Math.sin(a) * 95, 4, 12, 5);
+          }
+        }
+
+        // Active Wash Tool cursor icon
+        if (washState.phase !== 'done') {
+          wctx.font = '32px system-ui';
+          wctx.textAlign = 'center';
+          wctx.textBaseline = 'middle';
+          const icon = washState.tool === 'soap' ? '🧼' : (washState.tool === 'rinse' ? '🚿' : '💨');
+          wctx.fillText(icon, washState.pointerX, washState.pointerY);
+        }
+
+        wctx.restore();
+      }
+
+      // ============================================================
+      // 10. UI SYNC (ROSTER STRIP & POPOVER)
+      // ============================================================
+      function statusLabel(r) {
+        switch (r.state) {
+          case 'vacuuming': return { text: 'Vacuuming', cls: 'text-emerald-600 dark:text-emerald-400' };
+          case 'returning': return { text: 'Going to Base', cls: 'text-sky-600 dark:text-sky-400' };
+          case 'charging': return { text: r.battery >= 100 ? 'Fully Charged!' : 'Charging ⚡', cls: 'text-amber-600 dark:text-amber-400' };
+          case 'sleeping': return { text: 'Low Battery 🔋', cls: 'text-rose-600 dark:text-rose-400' };
+          case 'dirty_waiting': return { text: 'Messy! Squirrel coming!', cls: 'text-amber-700 dark:text-amber-400' };
+          case 'being_rescued': return { text: 'Squirrel Rescuing 🐿️', cls: 'text-sky-600 dark:text-sky-400' };
+          case 'in_repair': return { text: 'In Wash Tub 🧼', cls: 'text-cyan-600 dark:text-cyan-400' };
+          default: return { text: 'Ready', cls: 'text-slate-600' };
+        }
+      }
+
+      function renderRobotStrip() {
+        robotStripEl.innerHTML = '';
+        for (const r of robots) {
+          const st = statusLabel(r);
+          const pct = Math.round(r.battery);
+          const barColor = pct > 45 ? 'bg-emerald-500' : (pct > 20 ? 'bg-amber-500' : 'bg-rose-500');
+          const isSelected = selectedRobotId === r.id;
+
+          const card = document.createElement('button');
+          card.className = `toy-btn text-left px-2.5 py-1.5 min-h-[52px] rounded-2xl bg-[var(--card)] border ${isSelected ? 'border-amber-400 ring-2 ring-amber-400/50' : 'border-[var(--border)]'} flex items-center gap-2.5 cursor-pointer`;
+          card.innerHTML = `
+            <div class="w-8 h-8 rounded-full border-2 shrink-0 flex items-center justify-center shadow-inner" style="background:${r.bodyColor}; border-color:${r.rimColor};">
+              <span class="w-3 h-3 rounded-full" style="background:${r.accentColor};"></span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="font-extrabold text-xs sm:text-sm truncate">${r.name}</span>
+                <span class="text-[11px] font-bold tabular-nums">${pct}%</span>
+              </div>
+              <div class="text-[11px] font-semibold truncate ${st.cls}">${st.text}</div>
+              <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-1">
+                <div class="h-full ${barColor} rounded-full" style="width:${pct}%"></div>
+              </div>
+            </div>
+          `;
+          card.addEventListener('click', () => {
+            selectRobot(r.id);
+          });
+          robotStripEl.appendChild(card);
+        }
+      }
+
+      function selectRobot(id) {
+        selectedRobotId = id;
+        sfx.click();
+        updatePopover();
+      }
+
+      function updatePopover() {
+        const r = robots.find(x => x.id === selectedRobotId);
+        if (!r) {
+          robotPopover.classList.add('hidden');
+          return;
+        }
+        robotPopover.classList.remove('hidden');
+
+        popAvatar.style.background = r.bodyColor;
+        popAvatar.style.borderColor = r.rimColor;
+        popAvatar.innerHTML = `<span class="w-4 h-4 rounded-full" style="background:${r.accentColor}"></span>`;
+        popName.textContent = r.name;
+        popModel.textContent = r.model;
+
+        const st = statusLabel(r);
+        popStatus.textContent = st.text;
+        popStatus.className = st.cls;
+
+        const pct = Math.round(r.battery);
+        popBatteryPct.textContent = `${pct}%`;
+        popBatteryBar.style.width = `${pct}%`;
+        popBatteryBar.className = `h-full rounded-full transition-all duration-200 ${pct > 45 ? 'bg-emerald-500' : (pct > 20 ? 'bg-amber-500' : 'bg-rose-500')}`;
+
+        const inWash = r.state === 'in_repair';
+        const needsRescue = r.state === 'dirty_waiting' || r.state === 'being_rescued';
+
+        btnGoBase.classList.toggle('hidden', r.state === 'charging' || r.state === 'returning' || inWash || needsRescue);
+        btnStartRun.classList.toggle('hidden', r.state === 'vacuuming' || inWash || needsRescue);
+        btnInstantCharge.classList.toggle('hidden', r.state !== 'charging');
+        btnGoWash.classList.toggle('hidden', !inWash);
+
+        if (r.state === 'charging') {
+          btnInstantCharge.disabled = r.battery >= 100;
+          btnInstantCharge.classList.toggle('opacity-60', r.battery >= 100);
+          btnInstantCharge.innerHTML = r.battery >= 100
+            ? '<span>✨</span><span>Already 100% Charged!</span>'
+            : '<span>⚡</span><span>Instant Full Recharge (100%)</span>';
+        }
+      }
+
+      // ============================================================
+      // 11. INPUT & EVENT LISTENERS
+      // ============================================================
+      function getCanvasPoint(canvas, e, worldW, worldH) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: ((clientX - rect.left) / rect.width) * worldW,
+          y: ((clientY - rect.top) / rect.height) * worldH
+        };
+      }
+
+      roomCanvas.addEventListener('pointerdown', (e) => {
+        const pt = getCanvasPoint(roomCanvas, e, WORLD_W, WORLD_H);
+
+        // Check if clicking the Repair Station when a robot is inside
+        const rsLeft = REPAIR_STATION.x - REPAIR_STATION.w / 2;
+        const rsTop = REPAIR_STATION.y - REPAIR_STATION.h / 2;
+        if (pt.x >= rsLeft && pt.x <= rsLeft + REPAIR_STATION.w && pt.y >= rsTop && pt.y <= rsTop + REPAIR_STATION.h) {
+          const waiting = robots.find(r => r.state === 'in_repair');
+          if (waiting) {
+            openWashStation(waiting.id);
+            return;
+          }
+        }
+
+        // Check if clicking a robot directly (in pointer mode, always select; in scatter mode, scatter!)
+        if (currentTool === 'pointer') {
+          for (const r of robots) {
+            if (r.state === 'in_repair') continue;
+            if (Math.hypot(pt.x - r.x, pt.y - r.y) <= r.radius + 10) {
+              selectRobot(r.id);
+              return;
+            }
+          }
+          // Clicking empty floor closes popover
+          selectedRobotId = null;
+          updatePopover();
+        } else {
+          scatterMess(currentTool, pt.x, pt.y);
+        }
+      });
+
+      // Tool buttons
+      const hints = {
+        pointer: 'Click any robot to send it to its recharge base or start a vacuum run!',
+        rice: 'Tap anywhere on the floor to scatter Rice grains!',
+        paper: 'Tap anywhere on the floor to scatter colorful Paper scraps!',
+        poop: 'Tap to place Dog Poop — robots try to dodge it! Drop right in front of one for a silly wash rescue!'
+      };
+
+      document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentTool = btn.dataset.tool;
+          document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('tool-active'));
+          btn.classList.add('tool-active');
+          modeHintTextEl.textContent = hints[currentTool];
+          roomCanvas.style.cursor = currentTool === 'pointer' ? 'pointer' : 'crosshair';
+          sfx.click();
+        });
+      });
+
+      // Popover action buttons
+      document.getElementById('closePopoverBtn').addEventListener('click', () => {
+        selectedRobotId = null;
+        updatePopover();
+      });
+
+      btnGoBase.addEventListener('click', () => {
+        const r = robots.find(x => x.id === selectedRobotId);
+        if (r) sendRobotToBase(r);
+      });
+
+      btnStartRun.addEventListener('click', () => {
+        const r = robots.find(x => x.id === selectedRobotId);
+        if (r) startRobotRun(r);
+      });
+
+      btnInstantCharge.addEventListener('click', () => {
+        const r = robots.find(x => x.id === selectedRobotId);
+        if (r) instantChargeRobot(r);
+      });
+
+      btnGoWash.addEventListener('click', () => {
+        if (selectedRobotId) openWashStation(selectedRobotId);
+      });
+
+      // Header buttons
+      document.getElementById('scatterFunBtn').addEventListener('click', () => {
+        for (let i = 0; i < 3; i++) {
+          scatterMess('rice', 140 + Math.random() * 780, 150 + Math.random() * 360);
+          scatterMess('paper', 140 + Math.random() * 780, 150 + Math.random() * 360);
+        }
+      });
+
+      document.getElementById('clearMessBtn').addEventListener('click', () => {
+        messes.length = 0;
+        sfx.click();
+      });
+
+      const soundToggleBtn = document.getElementById('soundToggleBtn');
+      soundToggleBtn.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        soundToggleBtn.textContent = soundEnabled ? '🔊 Sound On' : '🔇 Sound Off';
+        if (soundEnabled) sfx.click();
+      });
+
+      // Wash Modal Controls
+      openWashBtn.addEventListener('click', () => {
+        const waiting = robots.find(r => r.state === 'in_repair');
+        if (waiting) openWashStation(waiting.id);
+      });
+
+      document.getElementById('closeWashModalBtn').addEventListener('click', () => {
+        washState.autoWashing = false;
+        washModal.classList.add('hidden');
+      });
+
+      finishWashBtn.addEventListener('click', finishWashAndRelease);
+
+      autoWashBtn.addEventListener('click', () => {
+        washState.autoWashing = true;
+        sfx.click();
+      });
+
+      document.querySelectorAll('.wash-tool-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          washState.tool = btn.dataset.washtool;
+          syncWashUI();
+          sfx.click();
+        });
+      });
+
+      washCanvas.addEventListener('pointerdown', (e) => {
+        washState.isPointerDown = true;
+        const pt = getCanvasPoint(washCanvas, e, 560, 350);
+        washState.pointerX = pt.x;
+        washState.pointerY = pt.y;
+        applyWashInteraction(pt.x, pt.y);
+      });
+
+      washCanvas.addEventListener('pointermove', (e) => {
+        const pt = getCanvasPoint(washCanvas, e, 560, 350);
+        washState.pointerX = pt.x;
+        washState.pointerY = pt.y;
+        if (washState.isPointerDown) {
+          applyWashInteraction(pt.x, pt.y);
+        }
+      });
+
+      window.addEventListener('pointerup', () => {
+        washState.isPointerDown = false;
+      });
+
+      // ============================================================
+      // 11B. ISOMETRIC ANIMATED CHARACTER POPOVER RENDERER
+      // ============================================================
+      function drawIsoCylinder(c, cx, cy, rx, ry, h, topFill, sideFill, strokeColor, lineW = 2.2) {
+        // Side skirt
+        c.beginPath();
+        c.ellipse(cx, cy + h, rx, ry, 0, 0, Math.PI);
+        c.lineTo(cx - rx, cy);
+        c.ellipse(cx, cy, rx, ry, 0, Math.PI, 0, true);
+        c.closePath();
+        c.fillStyle = sideFill;
+        c.fill();
+        c.strokeStyle = strokeColor;
+        c.lineWidth = lineW;
+        c.stroke();
+
+        // Top face
+        c.beginPath();
+        c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        c.fillStyle = topFill;
+        c.fill();
+        c.stroke();
+      }
+
+      function drawIsoRCWheel(c, wx, wy, rx, ry, thickness, spinAngle, dir = 1) {
+        c.save();
+        const innerX = wx - dir * thickness;
+
+        // Inner dark rubber tire ellipse
+        c.fillStyle = '#09090b';
+        c.strokeStyle = '#020617';
+        c.lineWidth = 1.8;
+        c.beginPath();
+        c.ellipse(innerX, wy, rx, ry, 0, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+
+        // Connecting tread band
+        const bandLeft = Math.min(wx, innerX);
+        c.fillStyle = '#18181b';
+        c.fillRect(bandLeft, wy - ry, thickness, ry * 2);
+
+        // Top & bottom tire edges
+        c.strokeStyle = '#020617';
+        c.lineWidth = 1.8;
+        c.beginPath();
+        c.moveTo(bandLeft, wy - ry); c.lineTo(bandLeft + thickness, wy - ry);
+        c.moveTo(bandLeft, wy + ry); c.lineTo(bandLeft + thickness, wy + ry);
+        c.stroke();
+
+        // Animated tire tread notches along the barrel
+        c.strokeStyle = '#52525b';
+        c.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          const a = spinAngle + (i / 6) * Math.PI * 2;
+          if (Math.sin(a) < 0.75) {
+            const ty = wy + Math.sin(a) * (ry - 2);
+            c.beginPath();
+            c.moveTo(bandLeft + 1, ty);
+            c.lineTo(bandLeft + thickness - 1, ty);
+            c.stroke();
+          }
+        }
+
+        // Outward-facing wheel face
+        c.fillStyle = '#27272a';
+        c.strokeStyle = '#020617';
+        c.lineWidth = 1.8;
+        c.beginPath();
+        c.ellipse(wx, wy, rx, ry, 0, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+
+        // Spinning yellow RC rim & spokes
+        c.fillStyle = '#facc15';
+        c.beginPath();
+        c.ellipse(wx, wy, rx * 0.58, ry * 0.58, 0, 0, Math.PI * 2);
+        c.fill();
+
+        c.strokeStyle = '#a16207';
+        c.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+          const a = spinAngle * dir + (i / 3) * Math.PI * 2;
+          c.beginPath();
+          c.moveTo(wx, wy);
+          c.lineTo(wx + Math.cos(a) * rx * 0.52, wy + Math.sin(a) * ry * 0.52);
+          c.stroke();
+        }
+        c.fillStyle = '#1e293b';
+        c.beginPath();
+        c.arc(wx, wy, 2.4, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+
+      function drawIsoCartoonFace(c, fx, fy, r, t, isDarkBody) {
+        const blinkCycle = t % 3.6;
+        const isBlinking = blinkCycle > 3.44;
+        const isSleepy = r.state === 'sleeping';
+        const isDirty = r.state === 'dirty_waiting' || r.state === 'being_rescued' || r.state === 'in_repair';
+        const isCharging = r.state === 'charging';
+
+        const eyeDX = r.shape === 'yellow_rc' ? 11 : 14;
+        const eyeY = fy;
+
+        if (isSleepy) {
+          c.strokeStyle = isDarkBody ? '#f8fafc' : '#1e293b';
+          c.lineWidth = 2.6;
+          c.lineCap = 'round';
+          [-eyeDX, eyeDX].forEach(dx => {
+            c.beginPath();
+            c.arc(fx + dx, eyeY + 1, 5, 0.15, Math.PI - 0.15);
+            c.stroke();
+          });
+          // Cute sleepy "o" mouth
+          c.beginPath();
+          c.arc(fx + 2, eyeY + 11, 3, 0, Math.PI * 2);
+          c.stroke();
+        } else if (isDirty) {
+          // Dizzy X eyes & squiggly mouth
+          c.strokeStyle = '#ef4444';
+          c.lineWidth = 2.6;
+          c.lineCap = 'round';
+          [-eyeDX, eyeDX].forEach(dx => {
+            c.beginPath();
+            c.moveTo(fx + dx - 4, eyeY - 4); c.lineTo(fx + dx + 4, eyeY + 4);
+            c.moveTo(fx + dx + 4, eyeY - 4); c.lineTo(fx + dx - 4, eyeY + 4);
+            c.stroke();
+          });
+          c.strokeStyle = isDarkBody ? '#fca5a5' : '#7f1d1d';
+          c.beginPath();
+          c.moveTo(fx - 7, eyeY + 11);
+          c.quadraticCurveTo(fx - 2, eyeY + 7, fx + 3, eyeY + 11);
+          c.quadraticCurveTo(fx + 8, eyeY + 15, fx + 12, eyeY + 10);
+          c.stroke();
+        } else {
+          // Big expressive cartoon eyes!
+          const lookX = Math.sin(t * 1.4) * 2;
+          [-eyeDX, eyeDX].forEach((dx, idx) => {
+            const ex = fx + dx;
+            if (isBlinking || isCharging) {
+              // Happy closed smiling arc eyes
+              c.strokeStyle = isDarkBody ? '#f8fafc' : '#0f172a';
+              c.lineWidth = 2.8;
+              c.lineCap = 'round';
+              c.beginPath();
+              c.arc(ex, eyeY + 2, 5.5, Math.PI + 0.25, -0.25);
+              c.stroke();
+            } else {
+              c.fillStyle = '#ffffff';
+              c.strokeStyle = '#0f172a';
+              c.lineWidth = 1.6;
+              c.beginPath();
+              c.ellipse(ex, eyeY, 6.2, 7.2, 0, 0, Math.PI * 2);
+              c.fill();
+              c.stroke();
+
+              // Pupil
+              c.fillStyle = '#0f172a';
+              c.beginPath();
+              c.ellipse(ex + 1.4 + lookX, eyeY + 0.5, 3.2, 3.8, 0, 0, Math.PI * 2);
+              c.fill();
+
+              // Sparkly catchlight
+              c.fillStyle = '#ffffff';
+              c.beginPath();
+              c.arc(ex + 2.5 + lookX, eyeY - 1.8, 1.6, 0, Math.PI * 2);
+              c.fill();
+
+              // Character-specific eyebrows!
+              if (r.id === 'black-shark') {
+                // Playful sporty brow on Shark
+                c.strokeStyle = '#38bdf8';
+                c.lineWidth = 2.2;
+                c.beginPath();
+                c.moveTo(ex - 5, eyeY - 8 + (idx === 0 ? 0 : 2));
+                c.lineTo(ex + 5, eyeY - 8 + (idx === 0 ? 2 : 0));
+                c.stroke();
+              } else if (r.id === 'dark-grey-roomba') {
+                // Cool confident flat brow on IR
+                c.strokeStyle = '#f59e0b';
+                c.lineWidth = 2.2;
+                c.beginPath();
+                c.moveTo(ex - 5, eyeY - 8);
+                c.lineTo(ex + 5, eyeY - 8);
+                c.stroke();
+              }
+            }
+          });
+
+          // Rosy cartoon cheeks
+          c.fillStyle = r.id === 'yellow-rc' ? 'rgba(249, 115, 22, 0.45)' : 'rgba(251, 113, 133, 0.42)';
+          c.beginPath();
+          c.ellipse(fx - eyeDX - 6, eyeY + 6, 4.2, 2.4, 0, 0, Math.PI * 2);
+          c.ellipse(fx + eyeDX + 6, eyeY + 6, 4.2, 2.4, 0, 0, Math.PI * 2);
+          c.fill();
+
+          // Expressive animated cartoon smile
+          c.strokeStyle = isDarkBody ? '#f8fafc' : '#0f172a';
+          c.lineWidth = 2.3;
+          c.lineCap = 'round';
+          if (r.id === 'black-shark') {
+            // Playful shark grin with tiny cute white tooth!
+            c.fillStyle = '#0f172a';
+            c.beginPath();
+            c.arc(fx + 1, eyeY + 7, 7, 0.1, Math.PI - 0.1);
+            c.closePath();
+            c.fill();
+            c.fillStyle = '#ffffff';
+            c.beginPath();
+            c.moveTo(fx - 2, eyeY + 8);
+            c.lineTo(fx + 1, eyeY + 12);
+            c.lineTo(fx + 4, eyeY + 8);
+            c.closePath();
+            c.fill();
+          } else {
+            c.beginPath();
+            c.arc(fx + 1, eyeY + 7, 6, 0.2, Math.PI - 0.2);
+            c.stroke();
+          }
+        }
+      }
+
+      function drawIsometricCharacter() {
+        if (!selectedRobotId || robotPopover.classList.contains('hidden')) return;
+        const r = robots.find(x => x.id === selectedRobotId);
+        if (!r) return;
+
+        const W = 264, H = 144;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = popIsoCanvas.getBoundingClientRect();
+        const tw = Math.max(1, Math.round(rect.width * dpr));
+        const th = Math.max(1, Math.round(rect.height * dpr));
+        if (popIsoCanvas.width !== tw || popIsoCanvas.height !== th) {
+          popIsoCanvas.width = tw;
+          popIsoCanvas.height = th;
+        }
+
+        const c = ictx;
+        const t = frameTime;
+        c.save();
+        c.scale(popIsoCanvas.width / W, popIsoCanvas.height / H);
+
+        // 1. Character-themed bright storybook backdrop
+        const bgMap = {
+          'white-roomba': ['#e0f2fe', '#fef9c3'],
+          'light-grey-roomba': ['#dcfce7', '#f0fdf4'],
+          'dark-grey-roomba': ['#fef3c7', '#ffedd5'],
+          'black-shark': ['#dbeafe', '#cffafe'],
+          'ecovacs-t80': ['#cffafe', '#f1f5f9'],
+          'yellow-rc': ['#fef9c3', '#ffedd5']
+        };
+        const [bgTop, bgBot] = bgMap[r.id] || ['#e0f2fe', '#fef3c7'];
+        const grad = c.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, bgTop);
+        grad.addColorStop(1, bgBot);
+        c.fillStyle = grad;
+        c.fillRect(0, 0, W, H);
+
+        // 2. Isometric diamond floor platform
+        const cx = W / 2;
+        const baseY = 104;
+        c.save();
+        c.fillStyle = 'rgba(255, 255, 255, 0.72)';
+        c.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(cx, baseY - 34);
+        c.lineTo(cx + 88, baseY);
+        c.lineTo(cx, baseY + 34);
+        c.lineTo(cx - 88, baseY);
+        c.closePath();
+        c.fill();
+        c.stroke();
+        c.restore();
+
+        // 3. Lively cartoon bounce & squash/stretch motion
+        const isMoving = r.state === 'vacuuming' || r.state === 'returning';
+        const isSleepy = r.state === 'sleeping';
+        const isDirty = r.state === 'dirty_waiting' || r.state === 'being_rescued' || r.state === 'in_repair';
+        const bounceSpeed = r.shape === 'yellow_rc' ? 7.5 : 5.0;
+        const bounce = isSleepy
+          ? Math.sin(t * 2.2) * 1.5
+          : (isMoving ? Math.abs(Math.sin(t * bounceSpeed)) * 8.5 : Math.sin(t * 3.0) * 3.5);
+        const tilt = isDirty
+          ? Math.sin(t * 11) * 0.08
+          : (isMoving ? Math.sin(t * (bounceSpeed * 0.5)) * 0.045 : 0);
+
+        // Soft animated ground shadow
+        const shadowScale = Math.max(0.76, 1 - bounce * 0.022);
+        c.fillStyle = 'rgba(15, 23, 42, 0.16)';
+        c.beginPath();
+        c.ellipse(cx, baseY + 4, 52 * shadowScale, 22 * shadowScale, 0, 0, Math.PI * 2);
+        c.fill();
+
+        // Translate to floating/bouncing isometric robot center
+        c.save();
+        c.translate(cx, baseY - 18 - bounce);
+        c.rotate(tilt);
+
+        // 4. Draw bespoke 3D Isometric Character for each of the 6 robots!
+        if (r.shape === 'yellow_rc') {
+          // --- YELLOW: Smaller body + BIG external RC wheels outside on left/right side axles! ---
+          const spin = isMoving ? t * 11 : t * 2.5;
+
+          // Left external RC wheel (facing outward-left, outside the left side of the body)
+          drawIsoRCWheel(c, -50, 7, 9, 18, 10, spin, -1);
+          c.fillStyle = '#94a3b8';
+          c.fillRect(-40, 4, 12, 7);
+
+          // Springy wobbling RC antenna behind body
+          const antSway = Math.sin(t * 9) * 5;
+          c.strokeStyle = '#334155';
+          c.lineWidth = 2.6;
+          c.beginPath();
+          c.moveTo(-14, -14);
+          c.quadraticCurveTo(-22, -30, -18 + antSway, -44);
+          c.stroke();
+          c.fillStyle = '#f97316';
+          c.beginPath();
+          c.arc(-18 + antSway, -44, 5, 0, Math.PI * 2);
+          c.fill();
+
+          // Smaller rounded yellow isometric chassis
+          drawIsoCylinder(c, 0, -6, 31, 18, 19, '#fde047', '#eab308', '#a16207', 2.4);
+
+          // Sporty black & orange racing stripe on top
+          c.fillStyle = '#1e293b';
+          c.beginPath();
+          c.ellipse(0, -8, 14, 5.5, 0, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#f97316';
+          c.beginPath();
+          c.ellipse(0, -8, 7, 2.8, 0, 0, Math.PI * 2);
+          c.fill();
+
+          // Cute cartoon face centered cleanly on the front of the yellow body!
+          drawIsoCartoonFace(c, 0, 7, r, t, false);
+
+          // Right external RC wheel (facing outward-right, outside the right side of the body!)
+          c.fillStyle = '#94a3b8';
+          c.fillRect(28, 4, 12, 7);
+          drawIsoRCWheel(c, 50, 7, 9, 18, 10, spin, 1);
+        } else if (r.shape === 'shark') {
+          // --- SHARK: Sleek matte-black 3D Shark vacuum with cute dorsal fin! ---
+          // Spinning dual side brushes peeking out front
+          const drawIsoBrush = (bx, by) => {
+            c.save();
+            c.translate(bx, by);
+            c.scale(1, 0.55);
+            c.rotate(t * 8);
+            c.strokeStyle = '#38bdf8';
+            c.lineWidth = 2.5;
+            for (let i = 0; i < 3; i++) {
+              const a = (i / 3) * Math.PI * 2;
+              c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 18, Math.sin(a) * 18); c.stroke();
+            }
+            c.restore();
+          };
+          drawIsoBrush(38, 16);
+          drawIsoBrush(-18, 22);
+
+          // 3D Isometric Black Chassis
+          drawIsoCylinder(c, 0, -6, 52, 27, 20, '#27272a', '#09090b', '#000000', 2.4);
+
+          // Glossy top bevel highlight
+          c.strokeStyle = 'rgba(255,255,255,0.16)';
+          c.lineWidth = 2.2;
+          c.beginPath();
+          c.ellipse(0, -6, 44, 21, 0, Math.PI * 1.1, Math.PI * 1.9);
+          c.stroke();
+
+          // Cute cartoon 3D Shark Dorsal Fin on top!
+          c.fillStyle = '#18181b';
+          c.strokeStyle = '#38bdf8';
+          c.lineWidth = 2;
+          c.beginPath();
+          c.moveTo(-16, -12);
+          c.quadraticCurveTo(-8, -42, 6, -34);
+          c.quadraticCurveTo(-2, -22, 4, -12);
+          c.closePath();
+          c.fill();
+          c.stroke();
+
+          // Glowing blue Shark LED strip
+          c.fillStyle = '#0ea5e9';
+          roundRect(c, -22, -9, 18, 6, 3);
+          c.fill();
+
+          // Expressive Shark cartoon face
+          drawIsoCartoonFace(c, 16, 5, r, t, true);
+        } else if (r.shape === 'ecovacs') {
+          // --- ROBOTA: Sleek 3D Ecovacs T80 with silver turret, cyan hologram & rear roller mop! ---
+          // Rear teal OZMO roller mop peeking behind
+          c.fillStyle = '#0891b2';
+          c.strokeStyle = '#0e7490';
+          c.lineWidth = 2;
+          roundRect(c, -56, -4, 20, 14, 6);
+          c.fill();
+          c.stroke();
+
+          // Spinning front brush
+          c.save();
+          c.translate(36, 17);
+          c.scale(1, 0.55);
+          c.rotate(t * 7.5);
+          c.strokeStyle = '#06b6d4';
+          c.lineWidth = 2.4;
+          for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2;
+            c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 16, Math.sin(a) * 16); c.stroke();
+          }
+          c.restore();
+
+          // Main pearl-white 3D isometric body
+          drawIsoCylinder(c, 0, -6, 50, 26, 20, '#f8fafc', '#cbd5e1', '#64748b', 2.2);
+
+          // Brushed silver metallic ring on top
+          c.strokeStyle = '#94a3b8';
+          c.lineWidth = 3.5;
+          c.beginPath();
+          c.ellipse(0, -6, 40, 20, 0, 0, Math.PI * 2);
+          c.stroke();
+
+          // Raised metallic center disc
+          drawIsoCylinder(c, -6, -13, 18, 10, 6, '#e2e8f0', '#94a3b8', '#64748b', 1.6);
+
+          // Pulsing cyan LiDAR halo ring floating gently above turret!
+          const pulse = (Math.sin(t * 4) + 1) * 0.5;
+          c.strokeStyle = `rgba(6, 182, 212, ${0.4 + pulse * 0.5})`;
+          c.lineWidth = 2.5;
+          c.beginPath();
+          c.ellipse(-6, -19 - pulse * 4, 14 + pulse * 6, 7 + pulse * 3, 0, 0, Math.PI * 2);
+          c.stroke();
+
+          // Expressive cartoon face
+          drawIsoCartoonFace(c, 16, 5, r, t, false);
+        } else {
+          // --- ROOMBA FAMILY: Snowy (White), Robit (Light Grey), IR (Dark Grey) ---
+          const isDark = r.id === 'dark-grey-roomba';
+          const sideFill = r.id === 'white-roomba' ? '#cbd5e1' : (r.id === 'light-grey-roomba' ? '#94a3b8' : '#1e293b');
+          const strokeCol = isDark ? '#0f172a' : '#64748b';
+
+          // Spinning side brush peeking out front-right
+          c.save();
+          c.translate(36, 17);
+          c.scale(1, 0.55);
+          c.rotate(t * 7);
+          c.strokeStyle = '#94a3b8';
+          c.lineWidth = 2.4;
+          for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2;
+            c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 16, Math.sin(a) * 16); c.stroke();
+          }
+          c.restore();
+
+          // Main 3D isometric Roomba cylinder
+          drawIsoCylinder(c, 0, -6, 50, 26, 19, r.bodyColor, sideFill, strokeCol, 2.2);
+
+          // Raised CLEAN button disc on top
+          drawIsoCylinder(c, -8, -11, 16, 9, 4, r.buttonColor, r.rimColor, strokeCol, 1.5);
+
+          // Glowing accent status ring
+          c.strokeStyle = r.state === 'charging' ? '#22c55e' : r.accentColor;
+          c.lineWidth = 2.8;
+          c.beginPath();
+          c.ellipse(-8, -11, 11, 6, 0, 0, Math.PI * 2);
+          c.stroke();
+
+          // IR's cool scanning infrared sensor beam across the front bumper!
+          if (r.id === 'dark-grey-roomba') {
+            const scanX = Math.sin(t * 4.5) * 18;
+            c.fillStyle = '#f59e0b';
+            c.beginPath();
+            c.arc(10 + scanX, 15, 3.2, 0, Math.PI * 2);
+            c.fill();
+          }
+
+          // Expressive cartoon face
+          drawIsoCartoonFace(c, 15, 4, r, t, isDark);
+        }
+
+        // 5. State-reactive floating cartoon badges (⚡ charging, Zzz sleeping, 💩 messy, ✨ happy!)
+        if (r.state === 'charging') {
+          c.font = '900 18px system-ui';
+          c.fillStyle = '#f59e0b';
+          c.fillText('⚡', -52, -26 + Math.sin(t * 5) * 4);
+          c.fillText('⚡', 44, -22 + Math.cos(t * 5) * 4);
+        } else if (isSleepy) {
+          c.font = '800 14px system-ui';
+          c.fillStyle = '#64748b';
+          const zOff = (t * 14) % 24;
+          c.fillText('Z', 34, -18 - zOff * 0.7);
+          c.font = '800 11px system-ui';
+          c.fillText('z', 44, -28 - zOff * 0.5);
+        } else if (isDirty) {
+          c.fillStyle = 'rgba(120, 53, 15, 0.8)';
+          c.beginPath(); c.arc(-20, -4, 7, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.arc(4, -14, 6, 0, Math.PI * 2); c.fill();
+        } else {
+          // Cheerful twinkling stars around happy character
+          c.fillStyle = r.accentColor;
+          const s1 = 4 + Math.sin(t * 5) * 2;
+          const s2 = 4 + Math.cos(t * 5) * 2;
+          drawStar(c, -56, -24 + Math.sin(t * 3) * 3, 4, s1 + 3, s1 * 0.45);
+          drawStar(c, 54, -26 + Math.cos(t * 3) * 3, 4, s2 + 3, s2 * 0.45);
+        }
+
+        c.restore();
+        c.restore();
+      }
+
+      // ============================================================
+      // 12. MAIN GAME LOOP
+      // ============================================================
+      let lastTs = performance.now();
+      let uiSyncAccum = 0;
+
+      function tick(ts) {
+        const dt = Math.min(0.05, (ts - lastTs) / 1000);
+        lastTs = ts;
+        frameTime += dt;
+
+        updateRobots(dt);
+        updateSquirrel(dt);
+
+        // Update floating effects
+        for (let i = effects.length - 1; i >= 0; i--) {
+          const e = effects[i];
+          e.x += e.vx * dt;
+          e.y += e.vy * dt;
+          e.life -= dt * 1.35;
+          if (e.life <= 0) effects.splice(i, 1);
+        }
+
+        drawPlayroom();
+        drawWashCanvas(dt);
+        drawIsometricCharacter();
+
+        uiSyncAccum += dt;
+        if (uiSyncAccum >= 0.25) {
+          uiSyncAccum = 0;
+          renderRobotStrip();
+          if (selectedRobotId) updatePopover();
+          updateWashCallout();
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      // Initialize
+      scatterInitialMess();
+      renderRobotStrip();
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>
